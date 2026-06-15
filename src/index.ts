@@ -50,6 +50,9 @@ export { shapeFlow, ShapeFlow } from './flow.js';
 
 export { balanceWidth, balancedFlow } from './balance.js';
 
+export { autoFit } from './auto-fit.js';
+export type { AutoFitOptions, AutoFitResult } from './auto-fit.js';
+
 export { insertSoftHyphens } from './hyphen.js';
 export type { InsertSoftHyphensOptions } from './hyphen.js';
 

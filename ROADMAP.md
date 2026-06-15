@@ -33,7 +33,7 @@ Make it good, not just a toy. This is where the project earns its keep.
       line string.
 - [x] **Balanced lines**: binary-search candidate widths (via a non-materializing stats walk when the
       range API ships; `measureLineStats`/`walkLineRanges`) until line count + ragged edge are nice.
-- [ ] **Auto-fit**: binary-search font size so text exactly fills a region. Note: `prepare` is keyed
+- [x] **Auto-fit**: binary-search font size so text exactly fills a region. Note: `prepare` is keyed
       on `(text, font)`, so each size is a fresh prepare — cache hard, binary-search not linear.
 - [ ] **Region from outline**: build a `Region` from an SVG path (flatten → polygon) and from a glyph
       outline (opentype.js). Add a raster/alpha-mask region.
