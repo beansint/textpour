@@ -31,7 +31,7 @@ Make it good, not just a toy. This is where the project earns its keep.
       gaps. Requires per-word x positions — either a per-word measurement pass or the unreleased
       `materializeLineRange`/rich-inline API. Renderer must draw words at computed x, not the whole
       line string.
-- [ ] **Balanced lines**: binary-search candidate widths (via a non-materializing stats walk when the
+- [x] **Balanced lines**: binary-search candidate widths (via a non-materializing stats walk when the
       range API ships; `measureLineStats`/`walkLineRanges`) until line count + ragged edge are nice.
 - [ ] **Auto-fit**: binary-search font size so text exactly fills a region. Note: `prepare` is keyed
       on `(text, font)`, so each size is a fresh prepare — cache hard, binary-search not linear.
