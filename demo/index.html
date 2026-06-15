@@ -19,18 +19,28 @@
       canvas { border: 1px solid #ccc; display: block; margin: 12px 0; }
       label { display: inline-flex; gap: 8px; align-items: center; }
       .muted { color: #666; }
+      .controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
     </style>
   </head>
   <body>
     <h1>textpour</h1>
     <p class="muted">Text poured into shapes via Pretext line-breaking. Drag to reflow (reuses one prepared pass).</p>
-    <label>radius <input id="r" type="range" min="60" max="200" value="160" /></label>
-    <label style="margin-left:16px"><input id="donut" type="checkbox" /> punch a hole (multi-span)</label>
+    <div class="controls">
+      <label>shape
+        <select id="shape">
+          <option value="circle">circle</option>
+          <option value="donut">donut (multi-span)</option>
+          <option value="star">star (concave, multi-span)</option>
+        </select>
+      </label>
+      <label>radius <input id="r" type="range" min="60" max="200" value="160" /></label>
+      <span class="muted" id="radius-note">(affects circle / donut)</span>
+    </div>
     <canvas id="c" width="440" height="440"></canvas>
 
     <script type="module">
       import {
-        shapeFlow, circle, subtract, rect, Canvas2DRenderer, PretextLineSource,
+        shapeFlow, circle, subtract, rect, polygon, Canvas2DRenderer, PretextLineSource,
       } from '../dist/src/index.js';
 
       const FONT = '17px Georgia';
@@ -55,22 +65,62 @@
 
       const cx = 220, cy = 220;
 
-      function render() {
-        const radius = +document.getElementById('r').value;
-        const hole = document.getElementById('donut').checked;
-        const region = hole
-          ? subtract(circle(cx, cy, radius), circle(cx, cy, radius * 0.42))
-          : circle(cx, cy, radius);
+      /** Compute the 10 vertices of a 5-pointed star centred at (cx, cy). */
+      function starPoints(outerR, innerR) {
+        const pts = [];
+        for (let i = 0; i < 10; i++) {
+          // Start at the top (-π/2), alternate outer/inner radius.
+          const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+          const r = i % 2 === 0 ? outerR : innerR;
+          pts.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
+        }
+        return pts;
+      }
 
-        const res = shapeFlow(source, region, { lineHeight: LINE_HEIGHT, ascent });
+      function render() {
+        const shape = document.getElementById('shape').value;
+        const radius = +document.getElementById('r').value;
+
+        let region;
+        let drawOutline;
+
+        if (shape === 'donut') {
+          region = subtract(circle(cx, cy, radius), circle(cx, cy, radius * 0.42));
+          drawOutline = () => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.moveTo(cx + radius * 0.42, cy);
+            ctx.arc(cx, cy, radius * 0.42, 0, Math.PI * 2);
+            ctx.stroke();
+          };
+        } else if (shape === 'star') {
+          const outerR = 190;
+          const innerR = 80;
+          const pts = starPoints(outerR, innerR);
+          region = polygon(pts);
+          drawOutline = () => {
+            ctx.beginPath();
+            ctx.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+            ctx.closePath();
+            ctx.stroke();
+          };
+        } else {
+          // circle (default)
+          region = circle(cx, cy, radius);
+          drawOutline = () => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.stroke();
+          };
+        }
+
+        const res = shapeFlow(source, region, { lineHeight: LINE_HEIGHT, ascent, multiSpan: 'fill' });
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         // reference outline
         ctx.strokeStyle = '#ddd';
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        if (hole) { ctx.moveTo(cx + radius * 0.42, cy); ctx.arc(cx, cy, radius * 0.42, 0, Math.PI * 2); }
-        ctx.stroke();
+        drawOutline();
         // text
         renderer.render(res, ctx);
 
@@ -82,7 +132,7 @@
       }
 
       document.getElementById('r').addEventListener('input', render);
-      document.getElementById('donut').addEventListener('change', render);
+      document.getElementById('shape').addEventListener('change', render);
       render();
     </script>
   </body>
