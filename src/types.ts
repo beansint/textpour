@@ -55,6 +55,8 @@ export interface PlacedLine<C> {
   start: C;
   /** Exclusive end cursor in the source. */
   end: C;
+  /** True when a soft hyphen (U+00AD) was chosen as the line-break point and a visible '-' was appended. */
+  softHyphenated?: boolean;
 }
 
 export interface FlowResult<C> {

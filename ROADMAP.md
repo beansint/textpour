@@ -24,7 +24,7 @@ Make it good, not just a toy. This is where the project earns its keep.
 
 - [x] **Verify multi-span on real Pretext in the browser** (the cursor trick is unit-tested with the
       monospace source; confirm with `PretextLineSource` in a donut and a concave polygon).
-- [ ] **Soft-hyphen support**: accept pre-inserted soft hyphens; when one wins a break, the
+- [x] **Soft-hyphen support**: accept pre-inserted soft hyphens; when one wins a break, the
       materialized line should carry the trailing `-`. (Pretext treats soft hyphens as optional
       break points.) Provide a conservative, locale-aware insertion helper.
 - [ ] **Justification** (`align: 'justify'`): distribute `span.width - line.width` across inter-word

@@ -47,6 +47,9 @@ export type { TextMeasurer } from './prefix-widths.js';
 
 export { shapeFlow, ShapeFlow } from './flow.js';
 
+export { insertSoftHyphens } from './hyphen.js';
+export type { InsertSoftHyphensOptions } from './hyphen.js';
+
 export {
   Canvas2DRenderer,
   HtmlInCanvasRenderer,

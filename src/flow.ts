@@ -76,6 +76,7 @@ export function shapeFlow<C>(source: LineSource<C>, region: Region, options: Flo
           spanIndex,
           start: line.start,
           end: line.end,
+          softHyphenated: line.softHyphenated,
         });
         cursor = line.end;
         spanIndex++;

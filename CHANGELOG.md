@@ -5,6 +5,14 @@ All notable changes to this project are documented here. Format follows
 (pre-1.0: minor = breaking is allowed, patch = fixes/additions).
 
 ## [Unreleased]
+- Soft-hyphen support (Phase 1, item 2): `MonospaceLineSource` now honors U+00AD as an optional
+  break point matching Pretext's semantics — unchosen soft hyphens are invisible (zero width),
+  and when a soft hyphen wins the break the displayed text gains a trailing `-` with
+  `softHyphenated: true`. `PlacedLine<C>` and `Line<C>` carry the new optional `softHyphenated`
+  flag (propagated through `shapeFlow`). New `insertSoftHyphens()` helper applies a conservative
+  vowel→consonant heuristic to long Latin words (≥8 chars by default). `PretextLineSource`
+  documents that Pretext honors soft hyphens natively and `softHyphenated` is left undefined
+  pending a 0.0.1 API to detect soft-hyphen breaks.
 - Concave-polygon multi-span verification: three new `node:test` specs assert that a U-shaped
   `PolygonRegion` produces rows with `spanIndex === 1` in the prong section, identical `y` across
   spans sharing a `rowIndex`, and `spanIndex === 0` only in the joined base — proving the cursor
