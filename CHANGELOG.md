@@ -5,6 +5,9 @@ All notable changes to this project are documented here. Format follows
 (pre-1.0: minor = breaking is allowed, patch = fixes/additions).
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-06-16
+### Phase 1 — Shape-flow quality
 - Conservative band sampling (Phase 1, item 7): new `FlowOptions.conservativeBandSampling` (with
   `bandSamplingSteps`, default 3). When enabled, each row's spans are the intersection of
   `region.spansAt` taken at several y within `[y, y+lineHeight)` instead of the single row center, so
@@ -79,7 +82,6 @@ All notable changes to this project are documented here. Format follows
   dependency). Seven new `node:test` specs cover the triangle corners, triangle flow containment,
   cubic flattening point count, relative command absolutization, maskRegion run-length result,
   maskRegion origin offset, and glyphToRegion bounds/spans sanity.
-- Phase 1 work (see ROADMAP.md): justification, soft-hyphen support, auto-fit, region-from-outline.
 
 ## [0.0.1] - 2026-01-01
 ### Added
@@ -90,5 +92,6 @@ All notable changes to this project are documented here. Format follows
 - `Renderer` seam: working `Canvas2DRenderer`, stubbed `HtmlInCanvasRenderer`.
 - 19 passing tests; browser demo (circle + donut + reflow).
 
-[Unreleased]: https://github.com/beansint/textpour/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/beansint/textpour/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/beansint/textpour/releases/tag/v0.1.0
 [0.0.1]: https://github.com/beansint/textpour/releases/tag/v0.0.1

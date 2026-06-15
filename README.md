@@ -4,8 +4,11 @@ A render-agnostic **text-geometry kernel** on top of
 [`@chenglou/pretext`](https://github.com/chenglou/pretext).
 
 - **Shape-flow**: pour text into arbitrary 2D regions — circles, polygons, holes, boolean
-  combinations — by routing Pretext's line-breaking through per-row spans. (CSS `shape-inside` never
-  shipped; this does it.)
+  combinations, SVG paths, glyph outlines, and raster alpha masks — by routing Pretext's
+  line-breaking through per-row spans. (CSS `shape-inside` never shipped; this does it.)
+- **Typographic quality** (the moat): justification (`align: 'justify'`), soft-hyphenation,
+  balanced lines, auto-fit (binary-search font size), and conservative band sampling so glyphs
+  never poke outside tight curves.
 - **Cursor ↔ point mapping**: map pixel positions to exact grapheme positions and back, for
   caret/hit-testing in custom-rendered text.
 - **Pluggable paint**: the kernel computes geometry; `Renderer`s paint it. Canvas2D works today;
@@ -21,11 +24,14 @@ prepared pass reused on every frame:
 
 ![textpour demo: text flowing into a circle and a donut, reflowing live](assets/textpour-demo.gif)
 
+The live demo (`demo/index.html`) now also includes a concave **star**, an SVG-path **heart**, and a
+**justify** toggle.
+
 ## Quickstart
 
 ```bash
 npm install
-npm test          # builds, runs the pure-logic test suite (19 specs)
+npm test          # builds, runs the pure-logic test suite (56 specs)
 npm run build     # emits dist/
 # demo (needs a browser + http):
 npx http-server . # or any static server
@@ -34,9 +40,10 @@ npx http-server . # or any static server
 
 ## Status
 
-Phase 0 (kernel scaffold) is complete and tested. See **ROADMAP.md** for what's next — shape-flow
-quality (justification, hyphenation, auto-fit), then the HTML-in-Canvas renderer, then the flagship
-"shaped CSS text on a 3D surface" demo.
+**Phase 0** (kernel scaffold) and **Phase 1** (shape-flow quality — justification, soft-hyphenation,
+balanced lines, auto-fit, region-from-outline, conservative band sampling) are complete and tested
+(56 specs). See **ROADMAP.md** for what's next — the HTML-in-Canvas renderer (Phase 2), then the
+flagship "shaped CSS text on a 3D surface" demo (Phase 3).
 
 ## Docs
 
