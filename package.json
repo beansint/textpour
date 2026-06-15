@@ -1,0 +1,39 @@
+{
+  "name": "textpour",
+  "version": "0.0.1",
+  "description": "Pour text into arbitrary shapes — a render-agnostic text-geometry kernel on top of @chenglou/pretext (shape-flow + cursor<->point mapping, pluggable paint adapters).",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": ["dist/src"],
+  "sideEffects": false,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc && node --test dist/test/*.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "text", "typography", "layout", "text-layout", "shape", "shape-flow",
+    "canvas", "pretext", "text-measurement", "line-breaking", "kerning"
+  ],
+  "author": "beansint",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/beansint/textpour.git" },
+  "bugs": { "url": "https://github.com/beansint/textpour/issues" },
+  "homepage": "https://github.com/beansint/textpour#readme",
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.1"
+  }
+}

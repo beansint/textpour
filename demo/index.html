@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>textpour demo</title>
+    <!--
+      Run me:
+        npm install && npm run build
+        npx http-server .   (or any static server; ES modules + Pretext need http, not file://)
+        open /demo/index.html
+      Pretext is pulled from esm.sh via the import map below; the kernel is the built ./dist output.
+    -->
+    <script type="importmap">
+      { "imports": { "@chenglou/pretext": "https://esm.sh/@chenglou/pretext" } }
+    </script>
+    <style>
+      body { font: 15px system-ui, sans-serif; margin: 24px; color: #222; }
+      canvas { border: 1px solid #ccc; display: block; margin: 12px 0; }
+      label { display: inline-flex; gap: 8px; align-items: center; }
+      .muted { color: #666; }
+    </style>
+  </head>
+  <body>
+    <h1>textpour</h1>
+    <p class="muted">Text poured into shapes via Pretext line-breaking. Drag to reflow (reuses one prepared pass).</p>
+    <label>radius <input id="r" type="range" min="60" max="200" value="160" /></label>
+    <label style="margin-left:16px"><input id="donut" type="checkbox" /> punch a hole (multi-span)</label>
+    <canvas id="c" width="440" height="440"></canvas>
+
+    <script type="module">
+      import {
+        shapeFlow, circle, subtract, rect, Canvas2DRenderer, PretextLineSource,
+      } from '../dist/src/index.js';
+
+      const FONT = '17px Georgia';
+      const LINE_HEIGHT = 24;
+      const TEXT =
+        'Typography is the craft of arranging text so it is legible, readable, and ' +
+        'beautiful. Here the words flow to fill a shape, each line as wide as the ' +
+        'region allows at that height, recomputed without ever touching the DOM. ' +
+        'Resize the shape and the same prepared text reflows instantly.';
+
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+
+      // Derive ascent from canvas metrics (Pretext is horizontal-only; vertical metrics are ours).
+      ctx.font = FONT;
+      const m = ctx.measureText('Mg');
+      const ascent = m.actualBoundingBoxAscent || m.fontBoundingBoxAscent || LINE_HEIGHT * 0.8;
+
+      // Build the source ONCE — the expensive prepare pass. Reflow reuses it.
+      const source = new PretextLineSource(TEXT, FONT);
+      const renderer = new Canvas2DRenderer(FONT, { color: '#1a1a1a' });
+
+      const cx = 220, cy = 220;
+
+      function render() {
+        const radius = +document.getElementById('r').value;
+        const hole = document.getElementById('donut').checked;
+        const region = hole
+          ? subtract(circle(cx, cy, radius), circle(cx, cy, radius * 0.42))
+          : circle(cx, cy, radius);
+
+        const res = shapeFlow(source, region, { lineHeight: LINE_HEIGHT, ascent });
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // reference outline
+        ctx.strokeStyle = '#ddd';
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        if (hole) { ctx.moveTo(cx + radius * 0.42, cy); ctx.arc(cx, cy, radius * 0.42, 0, Math.PI * 2); }
+        ctx.stroke();
+        // text
+        renderer.render(res, ctx);
+
+        if (res.overflow) {
+          ctx.fillStyle = '#b00';
+          ctx.font = '12px system-ui';
+          ctx.fillText('(text overflowed)', 8, canvas.height - 8);
+        }
+      }
+
+      document.getElementById('r').addEventListener('input', render);
+      document.getElementById('donut').addEventListener('change', render);
+      render();
+    </script>
+  </body>
+</html>
