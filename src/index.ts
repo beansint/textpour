@@ -61,3 +61,8 @@ export {
   HtmlInCanvasRenderer,
 } from './renderer.js';
 export type { Renderer, Canvas2DLike, HtmlInCanvasTarget } from './renderer.js';
+
+export { svgPathToPolygon, svgPathToRegion, maskRegion } from './outline-region.js';
+
+export { glyphToRegion } from './glyph-region.js';
+export type { GlyphContour } from './glyph-region.js';

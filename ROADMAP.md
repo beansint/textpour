@@ -35,7 +35,7 @@ Make it good, not just a toy. This is where the project earns its keep.
       range API ships; `measureLineStats`/`walkLineRanges`) until line count + ragged edge are nice.
 - [x] **Auto-fit**: binary-search font size so text exactly fills a region. Note: `prepare` is keyed
       on `(text, font)`, so each size is a fresh prepare — cache hard, binary-search not linear.
-- [ ] **Region from outline**: build a `Region` from an SVG path (flatten → polygon) and from a glyph
+- [x] **Region from outline**: build a `Region` from an SVG path (flatten → polygon) and from a glyph
       outline (opentype.js). Add a raster/alpha-mask region.
 - [ ] **Conservative band sampling option**: intersect inside-intervals across the whole row band so
       text never poke outside tight curves.

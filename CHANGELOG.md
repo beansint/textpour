@@ -61,6 +61,20 @@ All notable changes to this project are documented here. Format follows
   circle and donut. A `<select id="shape">` control switches between all three and the radius slider
   resizes every shape; `polygon()` is used for the star region and its outline is drawn via
   `ctx.moveTo`/`lineTo` over the same vertex list.
+- Region from outline (Phase 1, item 6): new `svgPathToPolygon(d, opts?)` flattens an SVG path
+  string (M/m L/l H/h V/v C/c Q/q Z/z, absolute + relative) into a `[x,y][]` point array by
+  tessellating cubic and quadratic Béziers with de Casteljau at `opts.steps` subdivisions (default
+  24). `svgPathToRegion(d, opts?)` is the convenience wrapper that passes the flattened polygon to
+  the existing `polygon()` builder. `maskRegion(width, height, alpha, threshold?, originX?, originY?)`
+  builds a `Region` from a row-major alpha array (e.g. `ImageData.data` every 4th byte) using
+  run-length scanning per row; threshold defaults to 128, origins to 0. A thin `glyph-region.ts`
+  module exports `glyphToRegion(pathData, opts?)`, documented as "pass
+  `glyph.getPath(x,y,fontSize).toPathData()` from opentype.js"; opentype.js is NOT a dependency of
+  this package — it stays entirely caller-side. `GlyphContour` type alias is also exported. Browser
+  demo gains a "heart" shape option built from `svgPathToRegion` (M/C/Z path, no radius slider
+  dependency). Seven new `node:test` specs cover the triangle corners, triangle flow containment,
+  cubic flattening point count, relative command absolutization, maskRegion run-length result,
+  maskRegion origin offset, and glyphToRegion bounds/spans sanity.
 - Phase 1 work (see ROADMAP.md): justification, soft-hyphen support, auto-fit, region-from-outline.
 
 ## [0.0.1] - 2026-01-01
