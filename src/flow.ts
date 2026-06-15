@@ -1,6 +1,6 @@
 import type { Region } from './region.js';
 import type { LineSource } from './line-source.js';
-import type { FlowOptions, FlowResult, Interval, PlacedLine } from './types.js';
+import type { FlowOptions, FlowResult, Interval, PlacedLine, WordSegment } from './types.js';
 
 function widestSpan(spans: Interval[]): Interval {
   let best = spans[0]!;
@@ -66,6 +66,31 @@ export function shapeFlow<C>(source: LineSource<C>, region: Region, options: Flo
         let x = x0;
         if (align === 'right') x = x1 - line.width;
         else if (align === 'center') x = x0 + (width - line.width) / 2;
+        // 'justify' is left-anchored: x stays x0 (same as 'left').
+
+        // Compute justified word positions when applicable.
+        // Last-line detection: probe one more line from this line's end. This materializes an
+        // extra line under Pretext 0.0.1; when the range API ships (measureLineStats / walkLineRanges),
+        // replace this with a non-materializing stats call to avoid the extra work.
+        let justifiedWords: WordSegment[] | undefined;
+        if (align === 'justify' && line.words !== undefined && line.words.length > 1) {
+          const probeForLast = source.nextLine(line.end, width);
+          const isLastLine = probeForLast === null || probeForLast.text.length === 0;
+          if (!isLastLine) {
+            // Distribute span width across words: word k's absolute x = x0 + sumWidths[0..k-1] + k*gap.
+            const spanWidth = x1 - x0;
+            const sumW = line.words.reduce((acc, w) => acc + w.width, 0);
+            const gap = (spanWidth - sumW) / (line.words.length - 1);
+            // Single left-to-right pass: each word sits after the prior words plus k justified gaps.
+            let priorWidths = 0;
+            justifiedWords = line.words.map((w, k) => {
+              const seg = { text: w.text, x: x0 + priorWidths + k * gap, width: w.width };
+              priorWidths += w.width;
+              return seg;
+            });
+          }
+        }
+
         lines.push({
           text: line.text,
           x,
@@ -77,6 +102,7 @@ export function shapeFlow<C>(source: LineSource<C>, region: Region, options: Flo
           start: line.start,
           end: line.end,
           softHyphenated: line.softHyphenated,
+          words: justifiedWords,
         });
         cursor = line.end;
         spanIndex++;

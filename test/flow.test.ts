@@ -129,6 +129,92 @@ test('concave U-polygon: spans on the same rowIndex share the same y', () => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Justification tests (align: 'justify')
+// ---------------------------------------------------------------------------
+
+const JUSTIFY_TEXT = 'hello world foo bar baz qux';
+const JUSTIFY_CHAR_WIDTH = 10;
+const JUSTIFY_SPAN_WIDTH = 130;
+
+test('justify: non-last lines fill the span exactly', () => {
+  const src = new MonospaceLineSource(JUSTIFY_TEXT, JUSTIFY_CHAR_WIDTH);
+  const res = shapeFlow(src, rect(0, 0, JUSTIFY_SPAN_WIDTH, 400), {
+    lineHeight: 20,
+    ascent: 16,
+    align: 'justify',
+  });
+  assert.ok(res.lines.length > 0, 'expected at least one line');
+
+  // Collect justified lines (those with words set).
+  const justifiedLines = res.lines.filter(l => l.words !== undefined);
+  assert.ok(justifiedLines.length > 0, 'expected at least one justified (non-last) line');
+
+  for (const line of justifiedLines) {
+    const words = line.words!;
+    // First word must start at the span's left edge (x0 = line.x since align is left-anchored).
+    assert.ok(
+      Math.abs(words[0]!.x - line.x) < 1e-6,
+      `words[0].x (${words[0]!.x}) should equal line.x (${line.x})`,
+    );
+    // Last word's right edge must reach the span's right edge (x0 + spanWidth = 130).
+    const lastWord = words[words.length - 1]!;
+    assert.ok(
+      Math.abs((lastWord.x + lastWord.width) - (line.x + JUSTIFY_SPAN_WIDTH)) < 1e-6,
+      `last word right edge (${lastWord.x + lastWord.width}) should equal span right (${line.x + JUSTIFY_SPAN_WIDTH})`,
+    );
+  }
+});
+
+test('justify: last line is NOT justified (ragged)', () => {
+  const src = new MonospaceLineSource(JUSTIFY_TEXT, JUSTIFY_CHAR_WIDTH);
+  const res = shapeFlow(src, rect(0, 0, JUSTIFY_SPAN_WIDTH, 400), {
+    lineHeight: 20,
+    ascent: 16,
+    align: 'justify',
+  });
+  assert.ok(res.lines.length > 0, 'expected at least one line');
+  const lastLine = res.lines[res.lines.length - 1]!;
+  // Last line must either have no words (not justified) or its last word must not reach the edge.
+  if (lastLine.words !== undefined) {
+    const lastWord = lastLine.words[lastLine.words.length - 1]!;
+    assert.ok(
+      (lastWord.x + lastWord.width) < JUSTIFY_SPAN_WIDTH - 1e-6,
+      'last line must be ragged (last word right < span right)',
+    );
+  }
+  // If words is undefined, the line is trivially not justified — test passes.
+});
+
+test('justify: single-word line is not justified (words undefined)', () => {
+  // Use a text where the first line is forced to be a single token (fits as-is in a wide span).
+  // Actually, use a text with very short lines so some lines have only one word.
+  // "toolongword" = 11 chars = 110px, span=130 → fits alone. But we need to force a single-word line.
+  // Use narrow span: charWidth=10, span=40 → maxChars=4. "hello" → must break at 4 chars. That's
+  // a forced hard break, not a word break — check it has no words set or single-element words (no stretch).
+  // Instead: use span=55 (5.5 chars). "hello"=50px fits, " world" → next. So "hello" is one word line.
+  const src = new MonospaceLineSource('hello world', 10);
+  const res = shapeFlow(src, rect(0, 0, 55, 400), {
+    lineHeight: 20,
+    ascent: 16,
+    align: 'justify',
+  });
+  // Find lines that have only a single word token.
+  const singleWordLines = res.lines.filter(l => {
+    if (l.words === undefined) return false;
+    return l.words.length === 1;
+  });
+  // We also accept that single-word lines just have words===undefined (no stretch possible).
+  // The contract says: single-word → words undefined. Verify no single-word line is stretched.
+  for (const line of res.lines) {
+    if (line.words !== undefined) {
+      assert.ok(line.words.length > 1, 'justified words must have > 1 token (no single-word stretch)');
+    }
+  }
+  // Ensure singleWordLines are absent (words undefined on those lines).
+  assert.equal(singleWordLines.length, 0, 'single-word lines must not have words set');
+});
+
 test('concave U-polygon: rows in the joined bottom (center y ∈ [200,300)) have only one span', () => {
   const uShape = polygon(U_POINTS);
   const res = shapeFlow(

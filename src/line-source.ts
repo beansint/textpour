@@ -2,6 +2,8 @@
 // The orchestrator only knows LineSource, so it is testable in Node with no canvas/Pretext,
 // and the same seam lets an HTML-in-Canvas planner reuse the geometry without changes.
 
+import type { WordSegment } from './types.js';
+
 /** One line produced by a source, with cursors back into the source. */
 export interface Line<C> {
   text: string;
@@ -10,6 +12,14 @@ export interface Line<C> {
   end: C;
   /** True when a soft hyphen (U+00AD) was chosen as the line-break point and a visible '-' was appended. */
   softHyphenated?: boolean;
+  /**
+   * Per-word segments with x relative to the LINE LEFT (not canvas). Each x is the natural offset
+   * of the word from the start of the line; width does NOT include surrounding spaces. Populated by
+   * sources that can cheaply compute word offsets (e.g. MonospaceLineSource). When present and
+   * align==='justify', flow.ts replaces these relative x values with absolute canvas x positions
+   * on PlacedLine.words.
+   */
+  words?: WordSegment[];
 }
 
 export interface LineSource<C> {
@@ -26,6 +36,27 @@ export interface LineSource<C> {
 /** Cursor for the monospace source: an index into the grapheme array. */
 export interface MonoCursor {
   i: number;
+}
+
+/**
+ * Build a WordSegment array from a displayed text line for a monospace source.
+ * Scans for maximal non-space runs; x is the character-offset * charWidth (natural offset from
+ * the LINE LEFT), width is the run's character count * charWidth.
+ * The trailing '-' from a soft-hyphen break is considered part of its last word.
+ * Single-token lines get a one-element array.
+ */
+function monoWords(text: string, charWidth: number): WordSegment[] {
+  const chars = Array.from(text);
+  const words: WordSegment[] = [];
+  let i = 0;
+  while (i < chars.length) {
+    if (chars[i] === ' ') { i++; continue; }
+    const start = i;
+    while (i < chars.length && chars[i] !== ' ') i++;
+    const run = chars.slice(start, i).join('');
+    words.push({ text: run, x: start * charWidth, width: run.length * charWidth });
+  }
+  return words;
 }
 
 const SOFT_HYPHEN = '­';
@@ -106,14 +137,14 @@ export class MonospaceLineSource implements LineSource<MonoCursor> {
         const raw = g.slice(lineStart, spaceIdx).filter(c => c !== SOFT_HYPHEN).join('');
         const text = raw.replace(/\s+$/u, '');
         const width = Array.from(text).length * this.charWidth;
-        return { text, width, start: { i: lineStart }, end: { i: spaceIdx } };
+        return { text, width, start: { i: lineStart }, end: { i: spaceIdx }, words: monoWords(text, this.charWidth) };
       } else {
         // lastBreakKind === 'softhyphen'
         // Break at/after the soft hyphen: append '-', next line starts after soft hyphen.
         const raw = g.slice(lineStart, lastBreakEnd - 1).filter(c => c !== SOFT_HYPHEN).join('');
         const text = raw + '-';
         const width = Array.from(text).length * this.charWidth;
-        return { text, width, softHyphenated: true, start: { i: lineStart }, end: { i: lastBreakEnd } };
+        return { text, width, softHyphenated: true, start: { i: lineStart }, end: { i: lastBreakEnd }, words: monoWords(text, this.charWidth) };
       }
     }
 
@@ -133,6 +164,6 @@ export class MonospaceLineSource implements LineSource<MonoCursor> {
       return { text: '', width, start: { i: lineStart }, end: { i: end } };
     }
     const width = Array.from(text).length * this.charWidth;
-    return { text, width, start: { i: lineStart }, end: { i: end } };
+    return { text, width, start: { i: lineStart }, end: { i: end }, words: monoWords(text, this.charWidth) };
   }
 }

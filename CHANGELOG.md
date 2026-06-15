@@ -5,6 +5,16 @@ All notable changes to this project are documented here. Format follows
 (pre-1.0: minor = breaking is allowed, patch = fixes/additions).
 
 ## [Unreleased]
+- Justification (Phase 1, item 3): `Align` now includes `'justify'`; new `WordSegment` interface
+  exported from the barrel. `Line<C>` gains optional `words?: WordSegment[]` (x relative to line
+  left, width excluding spaces). `MonospaceLineSource` populates `words` on every non-empty line.
+  `shapeFlow` detects last-line via a pure lookahead `nextLine` probe and, for non-last lines with
+  > 1 word and `align==='justify'`, computes absolute `PlacedLine.words` with gap-expanded x
+  positions so the last word's right edge exactly meets the span's right edge. `Canvas2DRenderer`
+  draws each word individually when `PlacedLine.words` is present. `PretextLineSource` accepts an
+  optional `TextMeasurer` ctor arg and populates `words` when present (justify silently falls back
+  to left without it). Demo adds a "justify" checkbox. Three new `node:test` specs cover span-fill,
+  ragged last line, and no single-word stretch.
 - Soft-hyphen support (Phase 1, item 2): `MonospaceLineSource` now honors U+00AD as an optional
   break point matching Pretext's semantics — unchosen soft hyphens are invisible (zero width),
   and when a soft hyphen wins the break the displayed text gains a trailing `-` with
