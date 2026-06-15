@@ -27,7 +27,7 @@ Make it good, not just a toy. This is where the project earns its keep.
 - [x] **Soft-hyphen support**: accept pre-inserted soft hyphens; when one wins a break, the
       materialized line should carry the trailing `-`. (Pretext treats soft hyphens as optional
       break points.) Provide a conservative, locale-aware insertion helper.
-- [ ] **Justification** (`align: 'justify'`): distribute `span.width - line.width` across inter-word
+- [x] **Justification** (`align: 'justify'`): distribute `span.width - line.width` across inter-word
       gaps. Requires per-word x positions — either a per-word measurement pass or the unreleased
       `materializeLineRange`/rich-inline API. Renderer must draw words at computed x, not the whole
       line string.

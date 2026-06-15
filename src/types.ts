@@ -19,7 +19,21 @@ export type MultiSpan =
   | 'widest'  // use only the widest span on the row (simple, convex-ish)
   | 'first';  // use only the first (leftmost) span
 
-export type Align = 'left' | 'center' | 'right';
+export type Align = 'left' | 'center' | 'right' | 'justify';
+
+/**
+ * One word segment with an absolute x position within the canvas/target coordinate space.
+ * Set on `PlacedLine.words` when `align === 'justify'` and the line is not the last line
+ * of a paragraph. The renderer draws each word individually at its computed x so that
+ * inter-word gaps expand to fill the span exactly.
+ */
+export interface WordSegment {
+  text: string;
+  /** Absolute x of the word's left edge (in canvas coordinates). */
+  x: number;
+  /** Rendered width of the word (NOT including surrounding spaces). */
+  width: number;
+}
 
 export interface FlowOptions {
   /** CSS line-height in px. Required. */
@@ -57,6 +71,13 @@ export interface PlacedLine<C> {
   end: C;
   /** True when a soft hyphen (U+00AD) was chosen as the line-break point and a visible '-' was appended. */
   softHyphenated?: boolean;
+  /**
+   * Justified word positions with ABSOLUTE x coordinates (set ONLY when align==='justify',
+   * words.length > 1, and this is NOT the last line of the paragraph). When present, the renderer
+   * draws each word individually to achieve exact span-filling. When absent, the renderer falls
+   * back to a single fillText of the whole line string.
+   */
+  words?: WordSegment[];
 }
 
 export interface FlowResult<C> {

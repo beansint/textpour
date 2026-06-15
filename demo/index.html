@@ -35,12 +35,14 @@
       </label>
       <label>radius <input id="r" type="range" min="60" max="200" value="160" /></label>
       <span class="muted" id="radius-note">(resizes the shape)</span>
+      <label><input id="justify" type="checkbox" /> justify</label>
     </div>
     <canvas id="c" width="440" height="440"></canvas>
 
     <script type="module">
       import {
         shapeFlow, circle, subtract, rect, polygon, Canvas2DRenderer, PretextLineSource,
+        canvasMeasurer,
       } from '../dist/src/index.js';
 
       const FONT = '17px Georgia';
@@ -60,7 +62,8 @@
       const ascent = m.actualBoundingBoxAscent || m.fontBoundingBoxAscent || LINE_HEIGHT * 0.8;
 
       // Build the source ONCE — the expensive prepare pass. Reflow reuses it.
-      const source = new PretextLineSource(TEXT, FONT);
+      // Pass canvasMeasurer so PretextLineSource can populate per-word widths for justification.
+      const source = new PretextLineSource(TEXT, FONT, canvasMeasurer(ctx, FONT));
       const renderer = new Canvas2DRenderer(FONT, { color: '#1a1a1a' });
 
       const cx = 220, cy = 220;
@@ -115,7 +118,13 @@
           };
         }
 
-        const res = shapeFlow(source, region, { lineHeight: LINE_HEIGHT, ascent, multiSpan: 'fill' });
+        const justify = document.getElementById('justify').checked;
+        const res = shapeFlow(source, region, {
+          lineHeight: LINE_HEIGHT,
+          ascent,
+          multiSpan: 'fill',
+          ...(justify ? { align: 'justify' } : {}),
+        });
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         // reference outline
@@ -133,6 +142,7 @@
 
       document.getElementById('r').addEventListener('input', render);
       document.getElementById('shape').addEventListener('change', render);
+      document.getElementById('justify').addEventListener('change', render);
       render();
     </script>
   </body>

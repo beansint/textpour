@@ -7,6 +7,7 @@ export type {
   FlowOptions,
   PlacedLine,
   FlowResult,
+  WordSegment,
 } from './types.js';
 
 export {

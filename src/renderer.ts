@@ -20,7 +20,14 @@ export class Canvas2DRenderer<C = unknown> implements Renderer<Canvas2DLike, C> 
     ctx.font = this.font;
     ctx.textBaseline = 'alphabetic';
     if (this.opts.color) ctx.fillStyle = this.opts.color;
-    for (const line of result.lines) ctx.fillText(line.text, line.x, line.baseline);
+    for (const line of result.lines) {
+      if (line.words !== undefined) {
+        // Justified line: draw each word at its individually computed absolute x position.
+        for (const word of line.words) ctx.fillText(word.text, word.x, line.baseline);
+      } else {
+        ctx.fillText(line.text, line.x, line.baseline);
+      }
+    }
   }
 }
 
