@@ -1,6 +1,7 @@
 import type { Region } from './region.js';
 import type { LineSource } from './line-source.js';
 import type { FlowOptions, FlowResult, Interval, PlacedLine, WordSegment } from './types.js';
+import { balancedFlow } from './balance.js';
 
 function widestSpan(spans: Interval[]): Interval {
   let best = spans[0]!;
@@ -136,5 +137,16 @@ export class ShapeFlow<C> {
   }
   reflow(region: Region, optionsPatch?: Partial<FlowOptions>): FlowResult<C> {
     return shapeFlow(this.source, region, { ...this.options, ...optionsPatch });
+  }
+  /**
+   * Like `reflow`, but first binary-searches for the narrowest width that preserves the
+   * unconstrained line count, then flows through the capped region. This reduces the ragged edge
+   * by avoiding a near-empty last line.
+   *
+   * Delegates to `balancedFlow` from balance.ts so `NarrowedRegion` stays private there.
+   */
+  rebalance(region: Region, optionsPatch?: Partial<FlowOptions>): FlowResult<C> {
+    const merged = { ...this.options, ...optionsPatch };
+    return balancedFlow(this.source, region, merged);
   }
 }

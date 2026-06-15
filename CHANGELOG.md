@@ -5,6 +5,17 @@ All notable changes to this project are documented here. Format follows
 (pre-1.0: minor = breaking is allowed, patch = fixes/additions).
 
 ## [Unreleased]
+- Balanced lines (Phase 1, item 4): new `balanceWidth(source, region, options): number` binary-searches
+  the minimum line width (in ~20 iterations, resolution 0.5 px) that preserves the unconstrained line
+  count and overflow flag, so the ragged edge is more even (avoids a near-empty last line). New
+  `balancedFlow(source, region, options): FlowResult<C>` is the convenience combinator that flows
+  through the capped region in one call. `ShapeFlow` gains a `rebalance(region, optionsPatch?)` method
+  that delegates to `balancedFlow`. Both are exported from the barrel. **Caveat:** uniform width
+  narrowing is most effective for rectangular / near-rectangular regions; for highly variable-width
+  shapes (circles, stars, concave polygons) it is a hint rather than a guarantee, and is best paired
+  with `multiSpan: 'widest'` or `'first'`. Internal `NarrowedRegion` is not exported. Six new
+  `node:test` specs cover the primary use-case, single-line no-op, overflow preservation, and
+  consistency between `balanceWidth` and `balancedFlow`.
 - Justification (Phase 1, item 3): `Align` now includes `'justify'`; new `WordSegment` interface
   exported from the barrel. `Line<C>` gains optional `words?: WordSegment[]` (x relative to line
   left, width excluding spaces). `MonospaceLineSource` populates `words` on every non-empty line.
