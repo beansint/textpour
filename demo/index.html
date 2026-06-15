@@ -34,7 +34,7 @@
         </select>
       </label>
       <label>radius <input id="r" type="range" min="60" max="200" value="160" /></label>
-      <span class="muted" id="radius-note">(affects circle / donut)</span>
+      <span class="muted" id="radius-note">(resizes the shape)</span>
     </div>
     <canvas id="c" width="440" height="440"></canvas>
 
@@ -94,8 +94,8 @@
             ctx.stroke();
           };
         } else if (shape === 'star') {
-          const outerR = 190;
-          const innerR = 80;
+          const outerR = radius;
+          const innerR = radius * 0.42;
           const pts = starPoints(outerR, innerR);
           region = polygon(pts);
           drawOutline = () => {
