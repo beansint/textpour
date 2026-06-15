@@ -5,6 +5,10 @@ All notable changes to this project are documented here. Format follows
 (pre-1.0: minor = breaking is allowed, patch = fixes/additions).
 
 ## [Unreleased]
+- Conservative band sampling (Phase 1, item 7): new `FlowOptions.conservativeBandSampling` (with
+  `bandSamplingSteps`, default 3). When enabled, each row's spans are the intersection of
+  `region.spansAt` taken at several y within `[y, y+lineHeight)` instead of the single row center, so
+  text never pokes outside a tight curve — at the cost of extra `spansAt` calls per row.
 - Auto-fit (Phase 1, item 5): new `autoFit<C>(makeSource, region, opts): AutoFitResult<C>` function
   binary-searches the largest font size in `[minSizePx, maxSizePx]` (defaults 6–96) at which
   `shapeFlow` does not overflow the region. Convergence stops when `hi − lo < tolerance` (default

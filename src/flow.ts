@@ -1,4 +1,5 @@
 import type { Region } from './region.js';
+import { intersectSpans } from './region.js';
 import type { LineSource } from './line-source.js';
 import type { FlowOptions, FlowResult, Interval, PlacedLine, WordSegment } from './types.js';
 import { balancedFlow } from './balance.js';
@@ -14,6 +15,23 @@ function widestSpan(spans: Interval[]): Interval {
     }
   }
   return best;
+}
+
+/**
+ * Conservative band sampling: intersect the region's spans across `steps` sample points evenly
+ * spread within [y, y+lineHeight). The result is the x-ranges inside the shape across the WHOLE
+ * band, so a line never pokes outside a tight curve. Returns [] as soon as any sample is empty.
+ */
+function bandSpans(region: Region, y: number, lineHeight: number, steps: number): Interval[] {
+  const step = lineHeight / steps;
+  let acc: Interval[] | null = null;
+  for (let k = 0; k < steps; k++) {
+    const sampleY = y + step * (k + 0.5);
+    const s = region.spansAt(sampleY);
+    acc = acc === null ? s : intersectSpans(acc, s);
+    if (acc.length === 0) return [];
+  }
+  return acc ?? [];
 }
 
 /**
@@ -33,6 +51,8 @@ export function shapeFlow<C>(source: LineSource<C>, region: Region, options: Flo
   const multiSpan = options.multiSpan ?? 'fill';
   const align = options.align ?? 'left';
   const minSpanWidth = options.minSpanWidth ?? 1;
+  const conservative = options.conservativeBandSampling ?? false;
+  const bandSteps = Math.max(1, Math.floor(options.bandSamplingSteps ?? 3));
   const bounds = region.bounds();
   const startY = options.startY ?? bounds.minY;
   const maxY = bounds.maxY;
@@ -46,8 +66,10 @@ export function shapeFlow<C>(source: LineSource<C>, region: Region, options: Flo
   let lastContentBottom = startY;
 
   while (!exhausted && y + lineHeight <= maxY + eps) {
-    const sampleY = y + lineHeight / 2;
-    let spans = region.spansAt(sampleY).filter((s) => s[1] - s[0] >= minSpanWidth);
+    const rawSpans = conservative
+      ? bandSpans(region, y, lineHeight, bandSteps)
+      : region.spansAt(y + lineHeight / 2);
+    let spans = rawSpans.filter((s) => s[1] - s[0] >= minSpanWidth);
     if (spans.length > 0) {
       if (multiSpan === 'widest') spans = [widestSpan(spans)];
       else if (multiSpan === 'first') spans = [spans[0]!];

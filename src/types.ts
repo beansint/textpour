@@ -48,6 +48,15 @@ export interface FlowOptions {
   align?: Align;
   /** Ignore spans narrower than this (px). Default: 1. */
   minSpanWidth?: number;
+  /**
+   * Sample the FULL row band instead of only its vertical center. When true, the row's spans are the
+   * intersection of `region.spansAt` taken at several y within [y, y+lineHeight), so a line never
+   * pokes outside a tight curve (the row only claims x-ranges inside the shape across the whole band).
+   * More conservative (text stays strictly inside), at the cost of extra `spansAt` calls. Default: false.
+   */
+  conservativeBandSampling?: boolean;
+  /** Number of band samples when `conservativeBandSampling` is on. Default: 3. Clamped to >= 1. */
+  bandSamplingSteps?: number;
 }
 
 /** One laid-out line, positioned. Carries source cursors for hit-testing / continuation. */
