@@ -14,6 +14,13 @@ A render-agnostic **text-geometry kernel** on top of
 The design bet is the **plan/paint split**: Pretext plans cheaply every frame (no DOM reflow); an
 expensive high-fidelity backend paints only when the plan changes.
 
+## Demo
+
+Text poured into a circle and a donut (multi-span), reflowing live as the region changes — the same
+prepared pass reused on every frame:
+
+![textpour demo: text flowing into a circle and a donut, reflowing live](assets/textpour-demo.gif)
+
 ## Quickstart
 
 ```bash
