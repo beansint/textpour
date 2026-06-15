@@ -5,6 +5,24 @@ All notable changes to this project are documented here. Format follows
 (pre-1.0: minor = breaking is allowed, patch = fixes/additions).
 
 ## [Unreleased]
+- Auto-fit (Phase 1, item 5): new `autoFit<C>(makeSource, region, opts): AutoFitResult<C>` function
+  binary-searches the largest font size in `[minSizePx, maxSizePx]` (defaults 6–96) at which
+  `shapeFlow` does not overflow the region. Convergence stops when `hi − lo < tolerance` (default
+  0.5 px) or `maxIterations` (default 24) is reached; in practice fewer than 10 iterations suffice.
+  `AutoFitOptions` extends `FlowOptions` with `minSizePx`, `maxSizePx`, `tolerance`,
+  `maxIterations`, `lineHeightRatio`, and `ascentRatio`; the ratio fields scale `lineHeight`/`ascent`
+  proportionally with the trial size so the overflow predicate stays monotonic in size (larger font →
+  taller rows → fewer rows fit → overflow). When `maxSizePx` fits the region it is returned directly;
+  when even `minSizePx` overflows it is returned as a best-effort result with `overflow===true`.
+  **Per-size Pretext cost:** each trial calls `makeSource(sizePx)`, which under `PretextLineSource`
+  triggers a full `prepareWithSegments` call (O(text) Unicode segmentation). Keep `maxIterations`
+  low and cache results when text/region are stable; a future stats-API seam
+  (`measureLineStats`/`layoutNextLineRange`) can shortcut the full shapeFlow pass without changing
+  this module's interface. `autoFit`, `AutoFitOptions`, and `AutoFitResult` are exported from the
+  barrel. Six new `node:test` specs cover: main convergence check (largest fitting + smallest
+  overflowing), very-large-region fast-path (returns `maxSizePx`), tiny-region best-effort
+  (returns `minSizePx` with `overflow===true`), custom bounds, `maxIterations=1` safety cap, and
+  explicit `ascentRatio` baseline correctness.
 - Balanced lines (Phase 1, item 4): new `balanceWidth(source, region, options): number` binary-searches
   the minimum line width (in ~20 iterations, resolution 0.5 px) that preserves the unconstrained line
   count and overflow flag, so the ragged edge is more even (avoids a near-empty last line). New
