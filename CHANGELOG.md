@@ -5,6 +5,16 @@ All notable changes to this project are documented here. Format follows
 (pre-1.0: minor = breaking is allowed, patch = fixes/additions).
 
 ## [Unreleased]
+- Demo gallery (`demo/`): a type-specimen suite — `gallery.html` plus **Anatomy** (runs raw Pretext
+  vs textpour side by side: identical pixels for a circle, the spans function exploding for a glyph),
+  **Islands** (multi-span around obstacles), **Letterform** (glyph filled via `maskRegion`+`autoFit`),
+  **Ghostwriter** (image silhouette via luminance mask), **Reflow** (prepared-once reflow), and
+  **Touchpoint** (pixel↔grapheme caret). Each carries an always-on "textpour vs raw Pretext" panel.
+  Demos are not shipped to npm (only `dist/src` is).
+- README/docs: reframed so the **geometry layer (`region.spansAt`) is the reusable core** and the
+  flow loop is trivial glue; corrected the earlier "typographic quality is the moat" claim
+  (justification/hyphenation/balance are conveniences over published Pretext, not the moat). Updated
+  package.json + GitHub repo descriptions to the geometry framing.
 
 ## [0.1.1] - 2026-06-16
 ### Docs / infra

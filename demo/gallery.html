@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>textpour — specimen</title>
+  <link rel="stylesheet" href="./demos.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./gallery.html">text<b>pour</b></a>
+    <nav>
+      <a aria-current="page" href="./gallery.html">Gallery</a>
+      <a href="./anatomy.html">Anatomy</a>
+      <a href="./islands.html">Islands</a>
+      <a href="./letterform.html">Letterform</a>
+      <a href="./silhouette.html">Silhouette</a>
+      <a href="./orbit.html">Reflow</a>
+      <a href="./caret.html">Caret</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="eyebrow">A specimen of textpour</p>
+    <h1 class="display">Pour text into<br /><em>any</em> shape.</h1>
+    <p class="lede">A line breaker like Pretext fills one line at one width. The loop that pours text into a shape on top of it is about <em>twelve trivial lines</em> you could inline. The one reusable thing textpour really is: turning any 2-D shape — holes, concave polygons, glyphs, photo masks, boolean combinations — into correct per-row spans. These demos isolate exactly that, and own up to what you don't need a library for.</p>
+
+    <div class="code" style="margin:0 0 30px"><div class="cap accent">the whole idea, in one loop</div><pre><span class="cm">// Pretext breaks the lines. This loop is the trivial glue.</span>
+let cur = source.start();
+for (let y = top; y + lh &lt;= bottom; y += lh) {
+  const spans = <span class="hl">region.spansAt(y + lh/2)</span>;  <span class="cm">// &larr; the only part you'd rewrite, per shape</span>
+  for (const [x0, x1] of spans) {        <span class="cm">// 1..N disjoint pieces on this row</span>
+    const line = source.nextLine(cur, x1 - x0);
+    if (!line) break;
+    draw(line.text, x0, y + ascent);
+    cur = line.end;                       <span class="cm">// thread one cursor across the gaps</span>
+  }
+}</pre></div>
+
+    <section class="gallery" aria-label="Demos">
+      <a class="card feature" href="./anatomy.html"><span class="arrow">↗</span><span class="idx">Start here — the honest teardown</span><h3>Anatomy</h3><p>Raw Pretext vs textpour, side by side and running. Identical pixels for a circle (inline it); the spans function exploding for a glyph (reuse it). What the library actually is.</p><span class="uses">comparison · running code</span></a>
+
+      <a class="card" href="./islands.html">
+        <span class="arrow">↗</span>
+        <span class="idx">01 — The finding</span>
+        <h3>Islands</h3>
+        <p>Drop obstacles into a column and one line flows around them on both sides at once — a single cursor across many spans. The thing a one-width line breaker can't do.</p>
+        <span class="uses">multi-span · interval subtraction</span>
+      </a>
+
+      <a class="card" href="./letterform.html">
+        <span class="arrow">↗</span>
+        <span class="idx">02 — Poster</span>
+        <h3>Fill the Letter</h3>
+        <p>Type a character; textpour rasterizes it into a region and pours it full of words, auto-fitting the size to pack the glyph.</p>
+        <span class="uses">rasterize → maskRegion → autoFit</span>
+      </a>
+
+      <a class="card" href="./silhouette.html">
+        <span class="arrow">↗</span>
+        <span class="idx">03 — Image</span>
+        <h3>Ghostwriter</h3>
+        <p>Drop in any photo; a luminance threshold becomes a region and text floods the silhouette. Stays in your browser.</p>
+        <span class="uses">luminance → spans</span>
+      </a>
+
+      <a class="card" href="./orbit.html">
+        <span class="arrow">↗</span>
+        <span class="idx">04 — Motion</span>
+        <h3>Reflow</h3>
+        <p>The text is shaped once; drag the stone — or let it orbit — and the column re-pours around it at 60fps. The plan/paint split, live.</p>
+        <span class="uses">reuse · prepared once</span>
+      </a>
+
+      <a class="card" href="./caret.html">
+        <span class="arrow">↗</span>
+        <span class="idx">05 — Editing</span>
+        <h3>Touchpoint</h3>
+        <p>Click anywhere in shaped text to land an exact caret — pixel↔grapheme mapping, the seed of a canvas text editor.</p>
+        <span class="uses">pixel ↔ grapheme</span>
+      </a>
+
+      <a class="card" href="./index.html">
+        <span class="arrow">↗</span>
+        <span class="idx">00 — Sandbox</span>
+        <h3>Playground</h3>
+        <p>The original kitchen-sink demo: circle, donut, concave star, SVG-path heart, and a justify toggle with the radius slider.</p>
+        <span class="uses">shapes · reflow slider</span>
+      </a>
+    </section>
+
+    <p class="note" style="margin-top:26px">
+      Every demo runs the real kernel from <code class="k">../dist/src/index.js</code> with Pretext pulled from esm.sh —
+      served over http (ES modules need it). The geometry is computed in pure JS; <code class="k">Canvas2DRenderer</code> paints it.
+      Most of what you see is one function — <code class="k">region.spansAt(y)</code> — for shapes Pretext has no concept of.
+    </p>
+  </main>
+
+  <footer class="colophon">
+    <span>textpour · text-geometry on @chenglou/pretext</span>
+    <a href="https://github.com/beansint/textpour">github.com/beansint/textpour</a>
+  </footer>
+</body>
+</html>

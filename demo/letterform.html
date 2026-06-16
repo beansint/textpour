@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fill the Letter — textpour</title>
+  <link rel="stylesheet" href="./demos.css" />
+  <script type="importmap">
+    { "imports": { "@chenglou/pretext": "https://esm.sh/@chenglou/pretext" } }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./gallery.html">text<b>pour</b></a>
+    <nav>
+      <a href="./gallery.html">Gallery</a>
+      <a href="./anatomy.html">Anatomy</a>
+      <a href="./islands.html">Islands</a>
+      <a aria-current="page" href="./letterform.html">Letterform</a>
+      <a href="./silhouette.html">Silhouette</a>
+      <a href="./orbit.html">Reflow</a>
+      <a href="./caret.html">Caret</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="eyebrow">The finding · multi-span · mask region</p>
+    <h1 class="display">A letter made <em>of</em> words.</h1>
+    <p class="lede">
+      Pretext lays out one line at one width. So it cannot pour a single line through the two halves of
+      an <b>A</b>, or around the bowl of an <b>&amp;</b>. textpour turns the glyph into a region and threads one
+      cursor across every disjoint span on each row — the counters fill themselves.
+    </p>
+
+    <div class="controls">
+      <span class="ctl"><label for="t">Letter</label>
+        <input id="t" type="text" value="&amp;" maxlength="5" size="5" /></span>
+      <span class="ctl"><label for="style">Cut</label>
+        <select id="style">
+          <option value="900 $Spx Fraunces">Fraunces 900</option>
+          <option value="italic 900 $Spx Fraunces">Fraunces 900 Italic</option>
+          <option value="900 $Spx Georgia">Georgia Bold</option>
+        </select></span>
+      <span class="ctl"><label for="th">Threshold</label>
+        <input id="th" type="range" min="40" max="220" value="128" /><span class="ctl-label" id="thv">128</span></span>
+      <span class="ctl toggle"><input id="ghost" type="checkbox" checked /><label for="ghost">Ghost</label></span>
+      <button id="png" class="ghost">Export PNG</button>
+    </div>
+
+    <div class="stage">
+      <canvas id="c"></canvas>
+    </div>
+
+    <div class="readout">
+      <span class="chip">glyph <b id="r-letter">&amp;</b></span>
+      <span class="chip">auto-fit <b id="r-size">—</b> px</span>
+      <span class="chip">lines <b id="r-lines">—</b></span>
+      <span class="chip"><span class="accent">multi-span rows</span> <b id="r-multi">—</b></span>
+      <span class="chip">coverage <b id="r-cov">—</b></span>
+    </div>
+
+    <p class="note">
+      Pipeline: rasterize the glyph &rarr; read its ink into a <code class="k">maskRegion</code> &rarr;
+      <code class="k">autoFit</code> the body size so the words pack the shape &rarr; pour with
+      <code class="k">multiSpan:'fill'</code> so one line crosses the counters. The
+      <span class="accent">multi-span rows</span> count is the bit Pretext can't produce.
+    </p>
+
+    <section class="wiring">
+      <div class="wiring-h">the wiring · textpour vs raw Pretext</div>
+      <div class="compare">
+        <div class="code">
+          <div class="cap accent">textpour</div>
+          <pre>const region = maskRegion(W, H, glyphAlpha);   <span class="cm">// ink -&gt; region</span>
+const { sizePx, result } = autoFit(
+  px =&gt; new PretextLineSource(BODY, px + 'px Georgia'),
+  region, { lineHeightRatio: 1.16, minSizePx: 7, maxSizePx: 24 });
+new Canvas2DRenderer(sizePx + 'px Georgia', { color: ink }).render(result, ctx);</pre>
+        </div>
+        <div class="code">
+          <div class="cap">raw Pretext, by hand</div>
+          <pre><span class="cm">// loop unchanged. spansAt(y) must now rasterize + scan a row:</span>
+function spansAt(yc) {
+  const row = Math.floor(yc), spans = [];
+  let inRun = false, start = 0;
+  for (let x = 0; x &lt; W; x++) {                 <span class="cm">// run-length scan</span>
+    const inside = glyphAlpha[row*W + x] &gt;= 128;
+    if (inside &amp;&amp; !inRun) { inRun = true; start = x; }
+    else if (!inside &amp;&amp; inRun) { inRun = false; spans.push([start, x]); }
+  }
+  if (inRun) spans.push([start, W]);
+  return spans;                                  <span class="cm">// counters -&gt; several spans</span>
+}
+<span class="cm">// ...and you still hand-roll the rasterizer + a font-size binary search.</span></pre>
+        </div>
+      </div>
+      <p class="verdict">Same loop. <b>spansAt</b> became a rasterizer + run-length scan, and you re-derived auto-fit. That pile <b>is</b> textpour (<b>maskRegion</b> + <b>autoFit</b>).</p>
+    </section>
+  </main>
+
+  <footer class="colophon">
+    <span>textpour · text-geometry on @chenglou/pretext</span>
+    <a href="https://github.com/beansint/textpour">github.com/beansint/textpour</a>
+  </footer>
+
+  <script type="module">
+    import { PretextLineSource, maskRegion, autoFit, Canvas2DRenderer } from '../dist/src/index.js';
+
+    const CSS_W = 760, CSS_H = 560;
+    const INK = '#17130d';
+    const BODY =
+      'Typography is the craft of endowing human language with a durable visual form. The shape of a ' +
+      'letter is a vessel; here the vessel is filled with the very thing it represents. Each line of ' +
+      'text is broken to the width available at its height, and where the glyph splits into separate ' +
+      'chambers a single line simply continues across the gap, as if the counter were never there. ' +
+      'This is the whole trick: geometry decides the spans, the line breaker fills them, and the two ' +
+      'never need to know about each other. Words become matter; matter takes the shape of a word. ';
+
+    const canvas = document.getElementById('c');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = CSS_W * dpr; canvas.height = CSS_H * dpr;
+    canvas.style.width = CSS_W + 'px'; canvas.style.height = CSS_H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Offscreen mask canvas at LOGICAL resolution (1 cell = 1 CSS px).
+    const mask = document.createElement('canvas');
+    mask.width = CSS_W; mask.height = CSS_H;
+    const mctx = mask.getContext('2d', { willReadFrequently: true });
+
+    const $ = (id) => document.getElementById(id);
+
+    /** Draw `text` as large as fits in CSS_W×CSS_H, return the chosen px size. */
+    function rasterize(text, styleTpl) {
+      mctx.clearRect(0, 0, CSS_W, CSS_H);
+      mctx.fillStyle = '#000';
+      mctx.textAlign = 'center';
+      mctx.textBaseline = 'middle';
+      const marginX = 40, marginY = 36;
+      const maxW = CSS_W - marginX * 2, maxH = CSS_H - marginY * 2;
+      // Binary-search the font size that fills the box (by width AND glyph height).
+      let lo = 10, hi = 900;
+      for (let i = 0; i < 22 && hi - lo > 0.5; i++) {
+        const s = (lo + hi) / 2;
+        mctx.font = styleTpl.replace('$S', s.toFixed(2));
+        const m = mctx.measureText(text);
+        const w = m.width;
+        const asc = m.actualBoundingBoxAscent ?? s * 0.7;
+        const desc = m.actualBoundingBoxDescent ?? s * 0.2;
+        const h = asc + desc;
+        if (w <= maxW && h <= maxH) lo = s; else hi = s;
+      }
+      const size = lo;
+      mctx.font = styleTpl.replace('$S', size.toFixed(2));
+      mctx.fillText(text, CSS_W / 2, CSS_H / 2);
+      return size;
+    }
+
+    /** Build a maskRegion alpha array (length W*H) from the mask canvas ink. */
+    function buildMask(threshold) {
+      const img = mctx.getImageData(0, 0, CSS_W, CSS_H).data;
+      const alpha = new Uint8ClampedArray(CSS_W * CSS_H);
+      let inside = 0;
+      for (let p = 0; p < CSS_W * CSS_H; p++) {
+        const a = img[p * 4 + 3];
+        const v = a >= threshold ? 255 : 0;
+        alpha[p] = v;
+        if (v) inside++;
+      }
+      return { alpha, inside };
+    }
+
+    let raf = 0;
+    function render() {
+      const text = ($('t').value || '&').trim() || '&';
+      const styleTpl = $('style').value;
+      const threshold = +$('th').value;
+      $('thv').textContent = threshold;
+
+      rasterize(text, styleTpl);
+      const { alpha, inside } = buildMask(threshold);
+      const cov = (100 * inside / (CSS_W * CSS_H)).toFixed(1);
+
+      ctx.clearRect(0, 0, CSS_W, CSS_H);
+
+      if (inside < 50) {
+        $('r-letter').textContent = text;
+        $('r-size').textContent = '—'; $('r-lines').textContent = '0';
+        $('r-multi').textContent = '0'; $('r-cov').textContent = cov + '%';
+        ctx.fillStyle = '#8c8470'; ctx.font = '14px IBM Plex Mono'; ctx.textAlign = 'center';
+        ctx.fillText('glyph is empty — adjust threshold', CSS_W / 2, CSS_H / 2);
+        ctx.textAlign = 'left';
+        return;
+      }
+
+      const region = maskRegion(CSS_W, CSS_H, alpha, 128, 0, 0);
+
+      // Ghost of the glyph behind the words for legibility.
+      if ($('ghost').checked) {
+        ctx.save(); ctx.globalAlpha = 0.06; ctx.drawImage(mask, 0, 0, CSS_W, CSS_H); ctx.restore();
+      }
+
+      const fit = autoFit(
+        (px) => new PretextLineSource(BODY, `${px}px Georgia`),
+        region,
+        { lineHeightRatio: 1.16, ascentRatio: 0.92, minSizePx: 7, maxSizePx: 24, tolerance: 0.4 },
+      );
+
+      new Canvas2DRenderer(`${fit.sizePx}px Georgia`, { color: INK }).render(fit.result, ctx);
+
+      // multi-span rows = rows where text continued into a 2nd+ span (a counter)
+      const multi = fit.result.lines.filter((l) => l.spanIndex > 0).length;
+      $('r-letter').textContent = text;
+      $('r-size').textContent = fit.sizePx.toFixed(1);
+      $('r-lines').textContent = fit.result.lines.length;
+      $('r-multi').textContent = multi;
+      $('r-cov').textContent = cov + '%';
+    }
+
+    function schedule() { cancelAnimationFrame(raf); raf = requestAnimationFrame(render); }
+
+    $('t').addEventListener('input', () => { clearTimeout(window.__d); window.__d = setTimeout(render, 220); });
+    $('style').addEventListener('change', render);
+    $('th').addEventListener('input', schedule);
+    $('ghost').addEventListener('change', render);
+    $('png').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.download = `textpour-${($('t').value || 'glyph')}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+
+    await document.fonts.ready;
+    render();
+  </script>
+</body>
+</html>

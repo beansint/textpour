@@ -1,7 +1,7 @@
 {
   "name": "textpour",
   "version": "0.1.1",
-  "description": "Pour text into arbitrary shapes — a render-agnostic text-geometry kernel on top of @chenglou/pretext (shape-flow + cursor<->point mapping, pluggable paint adapters).",
+  "description": "A geometry layer for @chenglou/pretext — turn any 2D shape (holes, concave polygons, glyphs, image masks) into the per-row spans it fills (multi-span shape-flow), plus cursor<->point mapping.",
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",

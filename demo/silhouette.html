@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ghostwriter — textpour</title>
+  <link rel="stylesheet" href="./demos.css" />
+  <script type="importmap">{ "imports": { "@chenglou/pretext": "https://esm.sh/@chenglou/pretext" } }</script>
+  <style>
+    .stage-wrap {
+      position: relative;
+    }
+    .drop-hint {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      color: var(--muted);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .stage-wrap.drag-over .drop-hint { opacity: 1; }
+    .stage-wrap.drag-over canvas { opacity: .4; }
+    canvas { transition: opacity .15s; }
+
+    .empty-hint {
+      display: none;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      text-align: center;
+      pointer-events: none;
+      line-height: 1.6;
+    }
+    .empty-hint.visible { display: block; }
+
+    .file-row {
+      display: inline-flex; align-items: center; gap: 9px;
+    }
+    .file-label {
+      font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+      letter-spacing: .12em; cursor: pointer; color: var(--paper);
+      background: var(--ink); border: 1px solid var(--ink);
+      padding: 7px 12px; border-radius: 2px;
+      transition: background .15s;
+    }
+    .file-label:hover { background: var(--accent); border-color: var(--accent); }
+    #file-input { display: none; }
+    #source-name { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./gallery.html">text<b>pour</b></a>
+    <nav>
+      <a href="./gallery.html">Gallery</a>
+      <a href="./anatomy.html">Anatomy</a>
+      <a href="./islands.html">Islands</a>
+      <a href="./letterform.html">Letterform</a>
+      <a aria-current="page" href="./silhouette.html">Silhouette</a>
+      <a href="./orbit.html">Reflow</a>
+      <a href="./caret.html">Caret</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="eyebrow">Image / alpha mask</p>
+    <h1 class="display">Words in the shape of <em>anything</em>.</h1>
+    <p class="lede">Drop in an image (or use a sample); textpour thresholds it into a Region and pours text into the silhouette. Nothing leaves your browser.</p>
+
+    <div class="controls">
+      <!-- Built-in shape selector -->
+      <span class="ctl">
+        <label for="sample-select">Sample</label>
+        <select id="sample-select">
+          <option value="mountain">Mountain</option>
+          <option value="dove">Bird / Dove</option>
+          <option value="blob">Blob</option>
+        </select>
+      </span>
+
+      <!-- File upload -->
+      <span class="ctl file-row">
+        <label class="file-label" for="file-input">Upload image</label>
+        <input type="file" id="file-input" accept="image/*" />
+        <span id="source-name">using sample</span>
+      </span>
+
+      <!-- Threshold slider -->
+      <span class="ctl">
+        <label for="threshold-slider">Threshold</label>
+        <input type="range" id="threshold-slider" min="20" max="235" value="120" />
+        <span class="chip" id="threshold-val">120</span>
+      </span>
+
+      <!-- Invert toggle -->
+      <span class="ctl toggle">
+        <input type="checkbox" id="invert-toggle" />
+        <label for="invert-toggle">Invert (light inside)</label>
+      </span>
+
+      <!-- Text size slider -->
+      <span class="ctl">
+        <label for="size-slider">Text size</label>
+        <input type="range" id="size-slider" min="12" max="22" value="15" />
+        <span class="chip" id="size-val">15px</span>
+      </span>
+
+      <!-- Ghost overlay toggle -->
+      <span class="ctl toggle">
+        <input type="checkbox" id="ghost-toggle" checked />
+        <label for="ghost-toggle">Show ghost</label>
+      </span>
+    </div>
+
+    <!-- Stage -->
+    <div class="stage-wrap" id="stage-wrap">
+      <div class="stage" id="stage" style="padding: 0; background: var(--paper);">
+        <canvas id="main-canvas" width="720" height="560"></canvas>
+      </div>
+      <div class="drop-hint">Drop image here</div>
+      <div class="empty-hint" id="empty-hint">Shape is empty — adjust threshold or toggle Invert.</div>
+    </div>
+
+    <!-- Readout chips -->
+    <div class="readout">
+      <span class="chip">Source: <b id="chip-source">mountain sample</b></span>
+      <span class="chip">Threshold: <b id="chip-threshold">120</b></span>
+      <span class="chip">Coverage: <b id="chip-coverage">—</b></span>
+      <span class="chip">Lines: <b id="chip-lines">—</b></span>
+      <span class="chip">Overflow: <b id="chip-overflow">—</b></span>
+    </div>
+
+    <!-- Explanation note -->
+    <p class="note" style="margin-top:18px;">
+      Each pixel's luminance is computed as <code class="k">L = 0.299R + 0.587G + 0.114B</code>.
+      Pixels below the threshold (and with &gt; 10 alpha) are marked <em>inside</em> (dark shapes);
+      <em>Invert</em> flips this for light shapes. The alpha array is passed to
+      <code class="k">maskRegion(w, h, alpha, threshold)</code>, which turns scan-line runs into
+      horizontal spans. <code class="k">shapeFlow()</code> pours text across those spans row by row.
+      Drag any photo into the canvas to use your own silhouette — nothing is uploaded.
+    </p>
+
+    <section class="wiring">
+      <div class="wiring-h">the wiring · textpour vs raw Pretext</div>
+      <div class="compare">
+        <div class="code">
+          <div class="cap accent">textpour</div>
+          <pre><span class="cm">// threshold the photo's luminance into a region, then pour:</span>
+const region = maskRegion(W, H, insideMask);   <span class="cm">// 255 where inside</span>
+const res = shapeFlow(src, region, { lineHeight, ascent, multiSpan: 'fill' });
+renderer.render(res, ctx);</pre>
+        </div>
+        <div class="code">
+          <div class="cap">raw Pretext, by hand</div>
+          <pre><span class="cm">// the whole demo is the geometry. spansAt(y):</span>
+function spansAt(yc) {
+  const row = Math.floor(yc), spans = [];
+  let inRun = false, start = 0;
+  for (let x = 0; x &lt; W; x++) {
+    const inside = insideMask[row*W + x] &gt;= 128; <span class="cm">// luminance threshold</span>
+    if (inside &amp;&amp; !inRun) { inRun = true; start = x; }
+    else if (!inside &amp;&amp; inRun) { inRun = false; spans.push([start, x]); }
+  }
+  if (inRun) spans.push([start, W]);
+  return spans;
+}</pre>
+        </div>
+      </div>
+      <p class="verdict">The whole demo <b>is</b> the geometry: luminance threshold + per-row run-length = <b>maskRegion</b>. The text loop is the trivial part.</p>
+    </section>
+  </main>
+
+  <footer class="colophon">
+    <span>textpour · text-geometry on @chenglou/pretext</span>
+    <a href="https://github.com/beansint/textpour">github.com/beansint/textpour</a>
+  </footer>
+
+  <script type="module">
+    import {
+      shapeFlow,
+      PretextLineSource,
+      Canvas2DRenderer,
+      maskRegion,
+      canvasMeasurer,
+    } from '../dist/src/index.js';
+
+    // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
+    const CANVAS_W = 720;
+    const CANVAS_H = 560;
+    const MASK_W = 720;
+    const MASK_H = 560;
+
+    const BODY_TEXT =
+      'Typography is the art of arranging type to make written language legible, readable, ' +
+      'and appealing. Long before digital tools, printers set individual metal sorts by hand, ' +
+      'spacing each line of text to fill the width of the composing stick. Every character ' +
+      'had physical weight — a slipped sort could ruin a page. Now the mathematics of ' +
+      'line-breaking runs in microseconds, yet the aesthetic problems remain unchanged: ' +
+      'how do you balance a rag? When does justification improve rhythm and when does it ' +
+      'produce rivers of white? Where should a hyphen fall? textpour explores one more ' +
+      'dimension of the old question — what if the column itself could bend to any shape? ' +
+      'The words pour through a silhouette, filling contours that no metal compositor ' +
+      'could have set. Each line is as wide as the shape allows at that height, calculated ' +
+      'by scanning a luminance mask pixel by pixel, building runs of inside columns, ' +
+      'and handing them to Pretext\'s greedy line-breaker. The result is text that ' +
+      'inhabits form — not text placed on top of it. Drag any photograph here and watch ' +
+      'the words take its shape. A portrait becomes a portrait in a second sense. ' +
+      'A skyline becomes a column of prose. The silhouette is the container; the language ' +
+      'is the material that fills it. Nothing leaves your browser. The mask computation ' +
+      'and the line-breaking happen entirely on the client, in a few milliseconds of canvas ' +
+      'arithmetic. Type your own passage, adjust the threshold, invert the mask, ' +
+      'change the size — the geometry recomputes instantly, the text reflowing as you drag.';
+
+    // -------------------------------------------------------------------------
+    // Canvas setup (HiDPI main canvas)
+    // -------------------------------------------------------------------------
+    const mainCanvas = document.getElementById('main-canvas');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    // Physical pixel size
+    mainCanvas.width = CANVAS_W * dpr;
+    mainCanvas.height = CANVAS_H * dpr;
+    // CSS display size
+    mainCanvas.style.width = CANVAS_W + 'px';
+    mainCanvas.style.height = CANVAS_H + 'px';
+
+    const mainCtx = mainCanvas.getContext('2d');
+    mainCtx.scale(dpr, dpr);
+
+    // Offscreen mask canvas — logical resolution only (no dpr)
+    const offscreen = document.createElement('canvas');
+    offscreen.width = MASK_W;
+    offscreen.height = MASK_H;
+    const offCtx = offscreen.getContext('2d');
+
+    // -------------------------------------------------------------------------
+    // State
+    // -------------------------------------------------------------------------
+    let currentSourceLabel = 'mountain sample';
+    let userImageDataURL = null; // non-null when user uploaded an image
+    let thresholdDebounceTimer = null;
+
+    // -------------------------------------------------------------------------
+    // Built-in shape drawers
+    // -------------------------------------------------------------------------
+    function drawMountain(ctx, w, h) {
+      ctx.fillStyle = '#111';
+      ctx.clearRect(0, 0, w, h);
+
+      // Base strip
+      ctx.beginPath();
+      ctx.rect(0, h * 0.82, w, h * 0.18);
+      ctx.fill();
+
+      // Left peak (tallest)
+      ctx.beginPath();
+      ctx.moveTo(w * 0.02, h * 0.82);
+      ctx.lineTo(w * 0.30, h * 0.12);
+      ctx.lineTo(w * 0.52, h * 0.48);
+      ctx.lineTo(w * 0.60, h * 0.82);
+      ctx.closePath();
+      ctx.fill();
+
+      // Middle peak (medium)
+      ctx.beginPath();
+      ctx.moveTo(w * 0.40, h * 0.82);
+      ctx.lineTo(w * 0.62, h * 0.24);
+      ctx.lineTo(w * 0.78, h * 0.56);
+      ctx.lineTo(w * 0.82, h * 0.82);
+      ctx.closePath();
+      ctx.fill();
+
+      // Right smaller hill
+      ctx.beginPath();
+      ctx.moveTo(w * 0.70, h * 0.82);
+      ctx.lineTo(w * 0.84, h * 0.42);
+      ctx.lineTo(w * 0.98, h * 0.82);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawDove(ctx, w, h) {
+      ctx.fillStyle = '#111';
+      ctx.clearRect(0, 0, w, h);
+
+      const cx = w * 0.52, cy = h * 0.48;
+      const sc = Math.min(w, h) * 0.0028;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(sc, sc);
+
+      // Body — elongated oval
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 90, 42, -0.18, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Head
+      ctx.beginPath();
+      ctx.ellipse(85, -28, 28, 24, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Beak
+      ctx.beginPath();
+      ctx.moveTo(108, -30);
+      ctx.lineTo(130, -22);
+      ctx.lineTo(108, -18);
+      ctx.closePath();
+      ctx.fill();
+
+      // Tail feathers
+      ctx.beginPath();
+      ctx.moveTo(-88, 0);
+      ctx.bezierCurveTo(-110, -30, -145, -55, -155, -35);
+      ctx.bezierCurveTo(-165, -18, -130, 5, -105, 10);
+      ctx.bezierCurveTo(-130, 20, -168, 25, -160, 45);
+      ctx.bezierCurveTo(-150, 62, -112, 38, -88, 20);
+      ctx.closePath();
+      ctx.fill();
+
+      // Upper wing arc
+      ctx.beginPath();
+      ctx.moveTo(-20, -38);
+      ctx.bezierCurveTo(10, -120, 80, -150, 60, -80);
+      ctx.bezierCurveTo(50, -55, 10, -44, -20, -38);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawBlob(ctx, w, h) {
+      ctx.fillStyle = '#111';
+      ctx.clearRect(0, 0, w, h);
+
+      // Three overlapping circles of different sizes
+      const blobs = [
+        { x: w * 0.38, y: h * 0.44, r: Math.min(w, h) * 0.24 },
+        { x: w * 0.60, y: h * 0.34, r: Math.min(w, h) * 0.19 },
+        { x: w * 0.55, y: h * 0.62, r: Math.min(w, h) * 0.17 },
+        { x: w * 0.25, y: h * 0.58, r: Math.min(w, h) * 0.14 },
+      ];
+
+      for (const b of blobs) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    const SHAPE_DRAWERS = {
+      mountain: drawMountain,
+      dove: drawDove,
+      blob: drawBlob,
+    };
+
+    // -------------------------------------------------------------------------
+    // Mask building
+    // -------------------------------------------------------------------------
+    function buildAlphaMask(imageData, invert) {
+      const { data, width, height } = imageData;
+      const alpha = new Uint8Array(width * height);
+      for (let i = 0; i < width * height; i++) {
+        const r = data[i * 4];
+        const g = data[i * 4 + 1];
+        const b = data[i * 4 + 2];
+        const a = data[i * 4 + 3];
+
+        if (a <= 10) {
+          // Fully transparent → always outside
+          alpha[i] = 0;
+          continue;
+        }
+
+        const L = 0.299 * r + 0.587 * g + 0.114 * b;
+        // invert OFF: dark pixels are inside (L <= threshold) → alpha 255
+        // invert ON:  light pixels are inside (L > threshold) → alpha 255
+        // We bake it so the value stored is 255 for inside, 0 for outside.
+        // Then pass threshold=128 to maskRegion.
+        alpha[i] = invert ? (L > 128 ? 255 : 0) : (L <= 128 ? 255 : 0);
+      }
+      return alpha;
+    }
+
+    // -------------------------------------------------------------------------
+    // Draw the offscreen canvas (sample or user image)
+    // -------------------------------------------------------------------------
+    function drawOffscreen(shapeName, imageDataURL) {
+      offCtx.clearRect(0, 0, MASK_W, MASK_H);
+
+      if (imageDataURL) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            // Draw contain-fit, centered
+            const scale = Math.min(MASK_W / img.naturalWidth, MASK_H / img.naturalHeight);
+            const dw = img.naturalWidth * scale;
+            const dh = img.naturalHeight * scale;
+            const dx = (MASK_W - dw) / 2;
+            const dy = (MASK_H - dh) / 2;
+            offCtx.drawImage(img, dx, dy, dw, dh);
+            resolve();
+          };
+          img.onerror = () => resolve(); // fall back gracefully
+          img.src = imageDataURL;
+        });
+      } else {
+        const drawer = SHAPE_DRAWERS[shapeName] || drawMountain;
+        drawer(offCtx, MASK_W, MASK_H);
+        return Promise.resolve();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Render pipeline
+    // -------------------------------------------------------------------------
+    async function render() {
+      await document.fonts.ready;
+
+      const threshold = parseInt(document.getElementById('threshold-slider').value, 10);
+      const invert = document.getElementById('invert-toggle').checked;
+      const fontSize = parseInt(document.getElementById('size-slider').value, 10);
+      const showGhost = document.getElementById('ghost-toggle').checked;
+      const sampleName = document.getElementById('sample-select').value;
+
+      // Determine current source
+      const imgSrc = userImageDataURL;
+      const sourceLabel = imgSrc ? currentSourceLabel : (sampleName + ' sample');
+
+      // Draw to offscreen
+      await drawOffscreen(sampleName, imgSrc);
+
+      // Get pixel data
+      const imageData = offCtx.getImageData(0, 0, MASK_W, MASK_H);
+
+      // Build alpha array respecting the threshold and invert settings
+      // Instead of baking at 128, we use the actual threshold per spec:
+      // inside = dark (L <= threshold) when !invert; inside = light (L > threshold) when invert
+      const { data, width, height } = imageData;
+      const alphaArr = new Uint8Array(width * height);
+      let insideCount = 0;
+      for (let i = 0; i < width * height; i++) {
+        const r = data[i * 4];
+        const g = data[i * 4 + 1];
+        const b = data[i * 4 + 2];
+        const a = data[i * 4 + 3];
+
+        if (a <= 10) {
+          alphaArr[i] = 0;
+          continue;
+        }
+
+        const L = 0.299 * r + 0.587 * g + 0.114 * b;
+        const inside = invert ? (L > threshold) : (L <= threshold);
+        alphaArr[i] = inside ? 255 : 0;
+        if (inside) insideCount++;
+      }
+
+      const totalPixels = width * height;
+      const coveragePct = ((insideCount / totalPixels) * 100).toFixed(1);
+
+      // Update readout
+      document.getElementById('chip-source').textContent = sourceLabel;
+      document.getElementById('chip-threshold').textContent = threshold;
+      document.getElementById('chip-coverage').textContent = coveragePct + '%';
+
+      // Check empty mask
+      const emptyHint = document.getElementById('empty-hint');
+      if (insideCount === 0) {
+        emptyHint.classList.add('visible');
+        document.getElementById('chip-lines').textContent = '0';
+        document.getElementById('chip-overflow').textContent = '—';
+        mainCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+        return;
+      } else {
+        emptyHint.classList.remove('visible');
+      }
+
+      // Build region from alpha mask
+      const region = maskRegion(width, height, alphaArr, 128, 0, 0);
+
+      // Build text source
+      const fontStr = fontSize + 'px Georgia';
+      const lineHeight = Math.round(fontSize * 1.27);
+
+      // Measure ascent
+      const tmpCtx = mainCanvas.getContext('2d');
+      tmpCtx.font = fontStr;
+      const m = tmpCtx.measureText('Mg');
+      const ascent = m.actualBoundingBoxAscent || m.fontBoundingBoxAscent || lineHeight * 0.8;
+
+      const source = new PretextLineSource(BODY_TEXT, fontStr, canvasMeasurer(tmpCtx, fontStr));
+
+      // Flow
+      const result = shapeFlow(source, region, {
+        lineHeight,
+        ascent,
+        multiSpan: 'fill',
+      });
+
+      // Update readout
+      document.getElementById('chip-lines').textContent = result.lines.length;
+      document.getElementById('chip-overflow').textContent = result.overflow ? 'yes' : 'no';
+
+      // Paint
+      mainCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Optional ghost layer — draw the offscreen silhouette at very low opacity
+      if (showGhost) {
+        mainCtx.save();
+        mainCtx.globalAlpha = 0.05;
+        mainCtx.drawImage(offscreen, 0, 0, CANVAS_W, CANVAS_H);
+        mainCtx.restore();
+      }
+
+      // Render text
+      const renderer = new Canvas2DRenderer(fontStr, { color: '#17130d' });
+      renderer.render(result, mainCtx);
+
+      // Overflow marker
+      if (result.overflow) {
+        mainCtx.save();
+        mainCtx.fillStyle = '#c5431d';
+        mainCtx.font = '11px IBM Plex Mono, monospace';
+        mainCtx.fillText('(text overflow)', 8, CANVAS_H - 8);
+        mainCtx.restore();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Debounced render for sliders
+    // -------------------------------------------------------------------------
+    function scheduleRender() {
+      clearTimeout(thresholdDebounceTimer);
+      thresholdDebounceTimer = setTimeout(render, 80);
+    }
+
+    // -------------------------------------------------------------------------
+    // Controls wiring
+    // -------------------------------------------------------------------------
+    const thresholdSlider = document.getElementById('threshold-slider');
+    const sizeSlider = document.getElementById('size-slider');
+    const invertToggle = document.getElementById('invert-toggle');
+    const ghostToggle = document.getElementById('ghost-toggle');
+    const sampleSelect = document.getElementById('sample-select');
+    const fileInput = document.getElementById('file-input');
+
+    thresholdSlider.addEventListener('input', () => {
+      document.getElementById('threshold-val').textContent = thresholdSlider.value;
+      scheduleRender();
+    });
+
+    sizeSlider.addEventListener('input', () => {
+      document.getElementById('size-val').textContent = sizeSlider.value + 'px';
+      scheduleRender();
+    });
+
+    invertToggle.addEventListener('change', render);
+    ghostToggle.addEventListener('change', render);
+
+    sampleSelect.addEventListener('change', () => {
+      // Clear user image when switching to a sample
+      userImageDataURL = null;
+      currentSourceLabel = sampleSelect.value + ' sample';
+      document.getElementById('source-name').textContent = 'using sample';
+      render();
+    });
+
+    // File input
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      loadFile(file);
+    });
+
+    function loadFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        userImageDataURL = e.target.result;
+        currentSourceLabel = file.name;
+        document.getElementById('source-name').textContent = file.name;
+        render();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Drag-and-drop on the stage
+    const stageWrap = document.getElementById('stage-wrap');
+
+    stageWrap.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      stageWrap.classList.add('drag-over');
+    });
+
+    stageWrap.addEventListener('dragleave', (e) => {
+      if (!stageWrap.contains(e.relatedTarget)) {
+        stageWrap.classList.remove('drag-over');
+      }
+    });
+
+    stageWrap.addEventListener('drop', (e) => {
+      e.preventDefault();
+      stageWrap.classList.remove('drag-over');
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        loadFile(file);
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // Initial render
+    // -------------------------------------------------------------------------
+    await document.fonts.ready;
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reflow — textpour</title>
+  <link rel="stylesheet" href="./demos.css" />
+  <script type="importmap">
+    { "imports": { "@chenglou/pretext": "https://esm.sh/@chenglou/pretext" } }
+  </script>
+  <style>
+    .stage { cursor: default; }
+    canvas { cursor: grab; background: #14110b !important; }
+    canvas.grabbing { cursor: grabbing; }
+
+    /* FPS/reflow counter — oversized readout chips */
+    .readout-big {
+      display: flex; flex-wrap: wrap; gap: 10px 20px;
+      margin: 0 0 16px;
+    }
+    .chip-big {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: var(--muted);
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      border-radius: 2px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .chip-big .val {
+      font-size: 28px;
+      letter-spacing: -.03em;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .chip-big .val.accent { color: var(--accent); }
+    .chip-big .val.prepared { color: #3a8f5c; }
+
+    .controls { border-radius: 2px; }
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="./gallery.html">text<b>pour</b></a>
+  <nav>
+    <a href="./gallery.html">Gallery</a>
+    <a href="./anatomy.html">Anatomy</a>
+    <a href="./islands.html">Islands</a>
+    <a href="./letterform.html">Letterform</a>
+    <a href="./silhouette.html">Silhouette</a>
+    <a aria-current="page" href="./orbit.html">Reflow</a>
+    <a href="./caret.html">Caret</a>
+  </nav>
+</header>
+
+<main class="wrap">
+  <p class="eyebrow">Motion / reflow</p>
+  <h1 class="display">Prepared <em>once</em>. Reflows every frame.</h1>
+  <p class="lede">The text is shaped a single time; drag the stone (or let it orbit) and the column re-pours around it live — no DOM, no re-shaping.</p>
+
+  <!-- live readout chips -->
+  <div class="readout-big">
+    <div class="chip-big">
+      <span class="label">FPS</span>
+      <span class="val accent" id="fps-val">—</span>
+    </div>
+    <div class="chip-big">
+      <span class="label">Reflows</span>
+      <span class="val" id="reflows-val">0</span>
+    </div>
+    <div class="chip-big">
+      <span class="label">Lines</span>
+      <span class="val" id="lines-val">—</span>
+    </div>
+    <div class="chip-big">
+      <span class="label">Prepared</span>
+      <span class="val prepared" id="prepared-val">1</span>
+    </div>
+    <div class="chip-big">
+      <span class="label">Overflow</span>
+      <span class="val" id="overflow-val">no</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span class="ctl">
+      <label class="ctl-label" for="obstacle-size">Stone size</label>
+      <input type="range" id="obstacle-size" min="40" max="140" value="72" />
+    </span>
+    <span class="ctl toggle">
+      <input type="checkbox" id="auto-orbit" checked />
+      <label for="auto-orbit">Auto-orbit</label>
+    </span>
+    <span class="ctl">
+      <label class="ctl-label" for="speed">Speed</label>
+      <input type="range" id="speed" min="1" max="10" value="4" step="1" />
+    </span>
+    <button id="pause-btn" class="ghost">Pause</button>
+  </div>
+
+  <div class="stage dark" style="margin-bottom: 24px;">
+    <canvas id="c"></canvas>
+  </div>
+
+  <div class="readout">
+    <span class="chip">obstacle x: <b id="chip-ox">—</b></span>
+    <span class="chip">obstacle y: <b id="chip-oy">—</b></span>
+    <span class="chip">obstacle r: <b id="chip-or">—</b></span>
+    <span class="chip">column: <b>760 × 560</b></span>
+  </div>
+
+  <p class="note">
+    <code class="k">new PretextLineSource(text, font)</code> runs <em>once</em> — this is the expensive Pretext prepare pass that segments and measures every word.
+    <code class="k">shapeFlow(source, subtract(rect, circle(ox, oy, r)), opts)</code> runs <em>every frame</em> — it reuses the prepared data and only solves the geometry for the current obstacle position.
+    This is the core plan/paint split: shape once, reflow freely.
+  </p>
+
+  <section class="wiring">
+    <div class="wiring-h">the wiring · textpour vs raw Pretext</div>
+    <div class="compare">
+      <div class="code">
+        <div class="cap accent">textpour</div>
+        <pre>const src = new PretextLineSource(TEXT, FONT);   <span class="cm">// prepared ONCE</span>
+<span class="cm">// ...then every frame (cheap):</span>
+const region = subtract(rect(...), circle(obx, oby, r));
+const res = shapeFlow(src, region, { lineHeight, ascent, multiSpan: 'fill' });</pre>
+      </div>
+      <div class="code">
+        <div class="cap">raw Pretext, by hand</div>
+        <pre><span class="cm">// rect minus one circle is genuinely easy (~6 lines):</span>
+function spansAt(yc) {
+  const dy = yc - oby;
+  if (Math.abs(dy) &gt;= r) return [[x, x + w]];   <span class="cm">// row misses the stone</span>
+  const h = Math.sqrt(r*r - dy*dy);
+  return [[x, obx - h], [obx + h, x + w]];       <span class="cm">// two pieces</span>
+}</pre>
+      </div>
+    </div>
+    <p class="verdict">Honest one — rect-minus-a-circle spans are <b>easy</b> (~6 lines). The value here isn't the geometry; it's reuse plus <b>prepare() running once</b> while <b>shapeFlow</b> re-pours every frame.</p>
+  </section>
+</main>
+
+<footer class="colophon">
+  <span>textpour · text-geometry on @chenglou/pretext</span>
+  <a href="https://github.com/beansint/textpour">github.com/beansint/textpour</a>
+</footer>
+
+<script type="module">
+import {
+  PretextLineSource,
+  shapeFlow,
+  rect,
+  circle,
+  subtract,
+  Canvas2DRenderer,
+  canvasMeasurer,
+} from '../dist/src/index.js';
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const W_CSS = 760;
+const H_CSS = 560;
+const FONT = '16px Georgia, serif';
+const LINE_HEIGHT = 26;
+// Dark canvas: warm parchment ink
+const TEXT_COLOR = '#efe7d6';
+
+// Column padding inside the canvas
+const PAD = 36;
+// Column rect in CSS px (the region text fills)
+const COL_X = PAD;
+const COL_Y = PAD;
+const COL_W = W_CSS - PAD * 2;
+const COL_H = H_CSS - PAD * 2;
+
+// Colors (dark theme)
+const BG = '#14110b';
+const STONE_RING = '#c5431d';
+const STONE_CORE = '#8f3214';
+
+const BODY_TEXT =
+  'Typography is not decoration — it is the architecture of thought. When words ' +
+  'are set with care, a reader moves through them without friction, carried by ' +
+  'rhythm and white space as much as by meaning. The ancient craft of the ' +
+  'compositor translated ideas into lead, then light; today it is code that ' +
+  'decides where lines break and how margins breathe. Yet the principles do not ' +
+  'change: measure, leading, optical alignment, the grey of the text block against ' +
+  'the paper. Here that geometry is solved not in a browser layout engine or a ' +
+  'PDF renderer, but in a small kernel that knows only intervals and span widths. ' +
+  'It does not care what you draw; it only tells you where each glyph belongs. ' +
+  'Drag the stone and the column re-pours around it in real time, every frame, ' +
+  'without ever re-shaping the text. The expensive preparation happens once, at ' +
+  'load. Everything after that is arithmetic — measuring intersections, choosing ' +
+  'line widths, stacking rows. That is the plan and paint split: shape once, ' +
+  'reflow freely, render as fast as your GPU allows. The stone moves; the words ' +
+  'flow. Gravity, but for glyphs.';
+
+// ── Canvas setup ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+canvas.width  = W_CSS * DPR;
+canvas.height = H_CSS * DPR;
+canvas.style.width  = W_CSS + 'px';
+canvas.style.height = H_CSS + 'px';
+
+const ctx = canvas.getContext('2d');
+ctx.scale(DPR, DPR);
+
+// ── Wait for fonts, then build source ONCE ───────────────────────────────────
+await document.fonts.ready;
+
+ctx.font = FONT;
+const metrics = ctx.measureText('Mg');
+const ASCENT = metrics.actualBoundingBoxAscent || metrics.fontBoundingBoxAscent || LINE_HEIGHT * 0.78;
+
+// THE expensive pass — happens exactly once
+const source = new PretextLineSource(BODY_TEXT, FONT, canvasMeasurer(ctx, FONT));
+const renderer = new Canvas2DRenderer(FONT, { color: TEXT_COLOR });
+
+// ── State ────────────────────────────────────────────────────────────────────
+let obstacleR = +document.getElementById('obstacle-size').value;
+// Start obstacle in the center of the column
+let ox = COL_X + COL_W / 2;
+let oy = COL_Y + COL_H / 2;
+
+let autoOrbit = document.getElementById('auto-orbit').checked;
+let paused = false;
+let dragging = false;
+let dragOffX = 0, dragOffY = 0;
+
+let t = 0; // animation time accumulator (seconds)
+let lastTs = null;
+let reflowCount = 0;
+let fpsSmoothed = 60;
+
+// FPS DOM refs
+const fpsDom      = document.getElementById('fps-val');
+const reflowsDom  = document.getElementById('reflows-val');
+const linesDom    = document.getElementById('lines-val');
+const overflowDom = document.getElementById('overflow-val');
+const chipOx      = document.getElementById('chip-ox');
+const chipOy      = document.getElementById('chip-oy');
+const chipOr      = document.getElementById('chip-or');
+
+// ── Orbit path ───────────────────────────────────────────────────────────────
+// Lissajous-ish figure-8 inside the column, keeping the stone away from edges.
+function orbitPos(time) {
+  const speedRaw = +document.getElementById('speed').value; // 1–10
+  const speed = 0.2 + speedRaw * 0.08; // ~0.28–1.0 rad/s
+
+  // Radius of the orbit, clamped so the stone stays inside the column
+  const maxR = obstacleR; // safe margin = stone radius
+  const orbitRx = Math.max(30, (COL_W / 2) - maxR - 20);
+  const orbitRy = Math.max(20, (COL_H / 2) - maxR - 20);
+
+  const cx = COL_X + COL_W / 2;
+  const cy = COL_Y + COL_H / 2;
+
+  // Lissajous 1:2 — asymmetric loop that never rests at center
+  return {
+    x: cx + orbitRx * Math.sin(speed * time),
+    y: cy + orbitRy * Math.sin(speed * 2 * time + 0.4),
+  };
+}
+
+// ── Draw obstacle ─────────────────────────────────────────────────────────────
+function drawObstacle(x, y, r) {
+  // Radial gradient for a smooth sphere look
+  const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.05, x, y, r);
+  grad.addColorStop(0,   '#5a3828');
+  grad.addColorStop(0.5, '#2e1e14');
+  grad.addColorStop(1,   '#110a06');
+
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Outer glow ring
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = STONE_RING;
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.7;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Inner accent ring
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.82, 0, Math.PI * 2);
+  ctx.strokeStyle = STONE_CORE;
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.35;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Specular highlight
+  const spec = ctx.createRadialGradient(x - r * 0.32, y - r * 0.35, 0, x - r * 0.2, y - r * 0.2, r * 0.55);
+  spec.addColorStop(0,   'rgba(255,230,200,0.22)');
+  spec.addColorStop(1,   'rgba(255,230,200,0)');
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = spec;
+  ctx.fill();
+}
+
+// ── Main rAF loop ─────────────────────────────────────────────────────────────
+function frame(ts) {
+  if (!paused) {
+    // FPS
+    if (lastTs !== null) {
+      const dt = (ts - lastTs) / 1000;
+      const rawFps = dt > 0 ? 1 / dt : 60;
+      fpsSmoothed = fpsSmoothed * 0.9 + rawFps * 0.1;
+      if (!dragging && autoOrbit) t += dt;
+    }
+    lastTs = ts;
+
+    // Orbit when not dragging
+    if (!dragging && autoOrbit) {
+      const pos = orbitPos(t);
+      ox = pos.x;
+      oy = pos.y;
+    }
+
+    // Clamp obstacle inside column with margin
+    const margin = obstacleR + 4;
+    ox = Math.max(COL_X + margin, Math.min(COL_X + COL_W - margin, ox));
+    oy = Math.max(COL_Y + margin, Math.min(COL_Y + COL_H - margin, oy));
+
+    // Build region: rect column minus the obstacle circle
+    const colRegion = rect(COL_X, COL_Y, COL_W, COL_H);
+    const obsCircle = circle(ox, oy, obstacleR);
+    const region = subtract(colRegion, obsCircle);
+
+    // THE cheap reflow — every frame
+    const res = shapeFlow(source, region, {
+      lineHeight: LINE_HEIGHT,
+      ascent: ASCENT,
+      multiSpan: 'fill',
+      align: 'justify',
+    });
+    reflowCount++;
+
+    // ── Draw ──────────────────────────────────────────────────────────────
+    ctx.clearRect(0, 0, W_CSS, H_CSS);
+
+    // Background
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W_CSS, H_CSS);
+
+    // Faint column border
+    ctx.strokeStyle = 'rgba(239,231,214,0.06)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(COL_X + 0.5, COL_Y + 0.5, COL_W - 1, COL_H - 1);
+
+    // Obstacle
+    drawObstacle(ox, oy, obstacleR);
+
+    // Text
+    renderer.render(res, ctx);
+
+    // Overflow indicator
+    if (res.overflow) {
+      ctx.fillStyle = '#c5431d';
+      ctx.font = '11px IBM Plex Mono, monospace';
+      ctx.fillText('↓ overflow', COL_X + 4, COL_Y + COL_H - 6);
+    }
+
+    // ── Update DOM readout (every frame — cheap string ops) ───────────────
+    fpsDom.textContent      = fpsSmoothed.toFixed(1);
+    reflowsDom.textContent  = reflowCount.toLocaleString();
+    linesDom.textContent    = res.lines.length;
+    overflowDom.textContent = res.overflow ? 'yes' : 'no';
+    chipOx.textContent      = Math.round(ox);
+    chipOy.textContent      = Math.round(oy);
+    chipOr.textContent      = Math.round(obstacleR);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+
+// ── Pointer interaction ───────────────────────────────────────────────────────
+function canvasPt(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (W_CSS / rect.width),
+    y: (e.clientY - rect.top)  * (H_CSS / rect.height),
+  };
+}
+
+function hitObstacle(px, py) {
+  const dx = px - ox, dy = py - oy;
+  return Math.sqrt(dx * dx + dy * dy) <= obstacleR + 8;
+}
+
+canvas.addEventListener('pointerdown', e => {
+  const pt = canvasPt(e);
+  if (hitObstacle(pt.x, pt.y)) {
+    dragging = true;
+    dragOffX = pt.x - ox;
+    dragOffY = pt.y - oy;
+    canvas.classList.add('grabbing');
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const pt = canvasPt(e);
+  ox = pt.x - dragOffX;
+  oy = pt.y - dragOffY;
+});
+
+canvas.addEventListener('pointerup', () => {
+  if (dragging) {
+    dragging = false;
+    canvas.classList.remove('grabbing');
+    // Resume auto-orbit from current position by resetting t so orbit starts here
+    if (autoOrbit) {
+      // Find t such that orbitPos(t) is close to current pos; approximate by keeping t as-is
+      // This avoids a jump when orbit resumes.
+    }
+  }
+});
+
+canvas.addEventListener('pointercancel', () => {
+  dragging = false;
+  canvas.classList.remove('grabbing');
+});
+
+// Cursor hint when hovering over the obstacle
+canvas.addEventListener('pointermove', e => {
+  if (dragging) return;
+  const pt = canvasPt(e);
+  canvas.style.cursor = hitObstacle(pt.x, pt.y) ? 'grab' : 'default';
+});
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+document.getElementById('obstacle-size').addEventListener('input', e => {
+  obstacleR = +e.target.value;
+});
+
+document.getElementById('auto-orbit').addEventListener('change', e => {
+  autoOrbit = e.target.checked;
+});
+
+document.getElementById('pause-btn').addEventListener('click', () => {
+  paused = !paused;
+  if (!paused) lastTs = null; // reset dt so we don't get a huge jump
+  document.getElementById('pause-btn').textContent = paused ? 'Resume' : 'Pause';
+});
+</script>
+</body>
+</html>
