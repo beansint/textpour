@@ -93,15 +93,20 @@ flagship "shaped CSS text on a 3D surface" demo (Phase 3).
 
 ## Example
 
+The exact shape of the code every demo shows — glance here, then **[see it live](demo/gallery.html)**:
+
 ```ts
-import { shapeFlow, circle, subtract, Canvas2DRenderer, PretextLineSource } from 'textpour';
+import { PretextLineSource, rect, circle, subtract, shapeFlow, Canvas2DRenderer } from 'textpour';
 
-const source = new PretextLineSource(longText, '17px Georgia'); // one prepare pass
-const region = subtract(circle(220, 220, 160), circle(220, 220, 67)); // a donut
-const result = shapeFlow(source, region, { lineHeight: 24, ascent: 18 });
+const source = new PretextLineSource(longText, '18px Georgia');        // prepare once
+const region = subtract(rect(0, 0, 600, 400), circle(300, 200, 90));   // a column with a hole
+const result = shapeFlow(source, region, { lineHeight: 26, ascent: 20, multiSpan: 'fill' });
 
-new Canvas2DRenderer('17px Georgia', { color: '#1a1a1a' }).render(result, ctx);
-// result.overflow / result.endCursor drive auto-fit and multi-region pagination
+new Canvas2DRenderer('18px Georgia', { color: '#17130d' }).render(result, ctx);
+// `multiSpan: 'fill'` threads one cursor across the disjoint spans each row gets around the hole.
+// `region` is the reusable part; the rest is a ~12-line loop you could inline (see the Anatomy demo).
 ```
+
+▶ **Islands** (`demo/islands.html`) runs exactly this, side by side with the raw-Pretext equivalent.
 
 MIT.
