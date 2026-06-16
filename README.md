@@ -24,6 +24,36 @@ prepared pass reused on every frame:
 
 ![textpour demo: text flowing into a circle and a donut, reflowing live](assets/textpour-demo.gif)
 
+## Why not just Pretext?
+
+Pretext is the line-breaking and measurement engine — a very good one. It breaks lines at a width
+*you give it*, measures without DOM reflow, and its fuller API even does Knuth–Plass justification,
+syllable hyphenation, and "shrinkwrap" (`walkLineRanges`). It can already flow text past a floated
+image, because that's still **one rectangular width that varies by `y`**.
+
+What Pretext deliberately does **not** model is **2D geometry**. Its layout call is "one line, one
+width." textpour adds exactly that missing layer:
+
+- **Arbitrary regions, not a scalar width.** A `Region` turns any 2D shape — circles, ellipses,
+  polygons, boolean unions/intersections/**holes**, SVG paths, glyph outlines, raster alpha masks —
+  into the per-row spans Pretext consumes. Pretext has no notion of a shape, a hole, or an outline.
+- **Multiple disjoint spans per line — the "cursor trick."** Pouring a single row across the left
+  *and* right of a hole (a donut), or into the prongs of a concave shape, in reading order on one
+  baseline. Pretext's one-line-one-width API can't natively continue a row across a gap; textpour
+  threads one cursor through every span on the row.
+- **Auto-fit to a region** — binary-search the font size that exactly fills a shape. Pretext keys
+  layout on `(text, font)`; it doesn't size-to-fit a 2D area.
+- **A render-agnostic plan/paint kernel** — geometry computed once, painted by pluggable
+  `Renderer`s (Canvas2D today, HTML-in-Canvas later).
+- **Cursor ↔ point mapping** for hit-testing/caret in custom-rendered text.
+
+Honest overlap: textpour targets the **published `@chenglou/pretext@0.0.1`**, whose API is just
+`prepareWithSegments` + `layoutNextLine`. So textpour's own justification, soft-hyphenation, and
+balanced-lines are pragmatic implementations over that minimal surface — when Pretext ships its
+richer API (Knuth–Plass justify, real hyphenation, `walkLineRanges`), textpour will defer to those
+and keep only the geometry it uniquely contributes.
+
+In one line: **Pretext breaks the lines; textpour decides the shape those lines fill.**
 
 ## Quickstart
 
