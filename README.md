@@ -91,22 +91,33 @@ flagship "shaped CSS text on a 3D surface" demo (Phase 3).
 - **SPEC.md** — the full design, API reference, and the relationship to Pretext + HTML-in-Canvas.
 - **ROADMAP.md** — phased tasks with acceptance + kill criteria.
 
-## Example
+## Example — Pretext vs textpour
 
-The exact shape of the code every demo shows — glance here, then **[see it live](demo/gallery.html)**:
+Pour text into a column with a hole, both ways — the contrast every demo shows ([live](demo/gallery.html)):
 
-```ts
-import { PretextLineSource, rect, circle, subtract, shapeFlow, Canvas2DRenderer } from 'textpour';
-
-const source = new PretextLineSource(longText, '18px Georgia');        // prepare once
-const region = subtract(rect(0, 0, 600, 400), circle(300, 200, 90));   // a column with a hole
-const result = shapeFlow(source, region, { lineHeight: 26, ascent: 20, multiSpan: 'fill' });
-
-new Canvas2DRenderer('18px Georgia', { color: '#17130d' }).render(result, ctx);
-// `multiSpan: 'fill'` threads one cursor across the disjoint spans each row gets around the hole.
-// `region` is the reusable part; the rest is a ~12-line loop you could inline (see the Anatomy demo).
+```js
+// raw Pretext: you write the loop AND the geometry
+let cur = { segmentIndex: 0, graphemeIndex: 0 };
+const spansAt = (yc) => {                                  // column minus the hole's chord
+  const h = 90 * 90 - (yc - 200) ** 2;
+  return h <= 0 ? [[0, 600]] : [[0, 300 - Math.sqrt(h)], [300 + Math.sqrt(h), 600]];
+};
+for (let y = 0; y + 26 <= 400; y += 26)
+  for (const [x0, x1] of spansAt(y + 13)) {
+    const line = layoutNextLine(prepared, cur, x1 - x0);  // one cursor across the gap
+    if (!line) break;
+    ctx.fillText(line.text, x0, y + 20); cur = line.end;
+  }
 ```
 
-▶ **Islands** (`demo/islands.html`) runs exactly this, side by side with the raw-Pretext equivalent.
+```ts
+// textpour: describe the shape, pour
+const region = subtract(rect(0, 0, 600, 400), circle(300, 200, 90));
+const result = shapeFlow(source, region, { lineHeight: 26, ascent: 20, multiSpan: 'fill' });
+renderer.render(result, ctx);
+```
+
+Same output. The loop is glue; **`region` is the part textpour gives you** — and it scales to glyphs,
+masks, and booleans without touching `spansAt`. [Anatomy](demo/anatomy.html) runs both, pixel-for-pixel.
 
 MIT.
