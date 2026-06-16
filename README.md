@@ -24,8 +24,6 @@ prepared pass reused on every frame:
 
 ![textpour demo: text flowing into a circle and a donut, reflowing live](assets/textpour-demo.gif)
 
-The live demo (`demo/index.html`) now also includes a concave **star**, an SVG-path **heart**, and a
-**justify** toggle.
 
 ## Quickstart
 
