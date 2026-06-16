@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-16
+### Docs / infra
+- README: new "Why not just Pretext?" section explaining the geometry layer textpour adds on top of
+  Pretext (regions/holes/outlines/masks, multi-span rows, auto-fit, plan/paint kernel).
+- CI: automated npm publish on GitHub Release is now wired (`NPM_TOKEN` secret + `publish.yml`); this
+  is the first release published through that pipeline.
+
 ## [0.1.0] - 2026-06-16
 ### Phase 1 — Shape-flow quality
 - Conservative band sampling (Phase 1, item 7): new `FlowOptions.conservativeBandSampling` (with
@@ -92,6 +99,7 @@ All notable changes to this project are documented here. Format follows
 - `Renderer` seam: working `Canvas2DRenderer`, stubbed `HtmlInCanvasRenderer`.
 - 19 passing tests; browser demo (circle + donut + reflow).
 
-[Unreleased]: https://github.com/beansint/textpour/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/beansint/textpour/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/beansint/textpour/releases/tag/v0.1.1
 [0.1.0]: https://github.com/beansint/textpour/releases/tag/v0.1.0
 [0.0.1]: https://github.com/beansint/textpour/releases/tag/v0.0.1
