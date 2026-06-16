@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Touchpoint — textpour</title>
+  <link rel="stylesheet" href="./demos.css">
+  <script type="importmap">{ "imports": { "@chenglou/pretext": "https://esm.sh/@chenglou/pretext" } }</script>
+  <style>
+    #canvas { cursor: crosshair; }
+    .readout { margin-top: 16px; }
+    .char-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--paper-2); border: 1px solid var(--line);
+      padding: 3px 8px; border-radius: 2px;
+      font-family: var(--mono); font-size: 13px;
+    }
+    .char-chip .arrow { color: var(--muted); font-size: 11px; }
+    .char-chip .ch {
+      display: inline-block; min-width: 1.6em; text-align: center;
+      color: var(--accent); font-weight: 600;
+    }
+    .char-chip .ch.muted { color: var(--muted); }
+    #text-input { width: 36ch; }
+    .controls-row2 { margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="./gallery.html">text<b>pour</b></a>
+  <nav>
+    <a href="./gallery.html">Gallery</a>
+    <a href="./anatomy.html">Anatomy</a>
+    <a href="./islands.html">Islands</a>
+    <a href="./letterform.html">Letterform</a>
+    <a href="./silhouette.html">Silhouette</a>
+    <a href="./orbit.html">Reflow</a>
+    <a aria-current="page" href="./caret.html">Caret</a>
+  </nav>
+</header>
+
+<main class="wrap">
+  <p class="eyebrow">Hit-testing / caret</p>
+  <h1 class="display">Click the text. Land <em>between</em> the right two letters.</h1>
+  <p class="lede">
+    textpour maps any pixel to an exact character position and back — the basis for carets,
+    selection, and editing in canvas-rendered text.
+  </p>
+
+  <div class="controls">
+    <span class="ctl">
+      <label class="ctl-label" for="shape-sel">Shape</label>
+      <select id="shape-sel">
+        <option value="circle" selected>Circle</option>
+        <option value="ellipse">Ellipse</option>
+        <option value="rect">Rectangle</option>
+        <option value="polygon">Concave polygon</option>
+      </select>
+    </span>
+    <span class="ctl">
+      <label class="ctl-label" for="font-size">Font size</label>
+      <input type="range" id="font-size" min="16" max="30" value="22">
+      <span id="font-size-val" class="chip">22px</span>
+    </span>
+  </div>
+  <div class="controls controls-row2">
+    <span class="ctl">
+      <label class="ctl-label" for="text-input">Body text</label>
+      <input type="text" id="text-input"
+        value="Héllo world 👍 — type your own text here, incl. accented words and emoji, to test grapheme-correct caret placement.">
+    </span>
+  </div>
+
+  <div class="stage">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="readout">
+    <span class="chip">Row <b id="r-row">—</b></span>
+    <span class="chip">Grapheme <b id="r-gidx">—</b> / <b id="r-gtotal">—</b></span>
+    <span class="chip">Caret x <b id="r-cx">—</b> px</span>
+    <span class="chip">
+      <span class="arrow">←</span>
+      <span class="char-chip"><span class="ch" id="r-left">·</span></span>
+      <span style="color:var(--accent);font-size:11px;font-family:var(--mono);">|</span>
+      <span class="char-chip"><span class="ch" id="r-right">·</span></span>
+      <span class="arrow">→</span>
+    </span>
+  </div>
+
+  <p class="note">
+    <code class="k">buildPrefixWidths(lineText, measurer)</code> returns a cumulative array of
+    x-offsets at each grapheme boundary — measuring the prefix <em>string</em> each time so
+    kerning is captured. <code class="k">xToGraphemeIndex(prefix, x)</code> binary-searches that
+    array and snaps to the nearer boundary. <code class="k">graphemeIndexToX(prefix, idx)</code>
+    reads back the pixel position. Together they give a pixel-perfect, grapheme-correct cursor
+    for canvas text editing — emoji 👍 and accented characters land as single units, never split.
+  </p>
+
+  <section class="wiring">
+    <div class="wiring-h">the wiring · textpour vs raw Pretext</div>
+    <div class="compare">
+      <div class="code">
+        <div class="cap accent">textpour</div>
+        <pre>const prefix = buildPrefixWidths(line.text, canvasMeasurer(ctx, FONT));
+const i = xToGraphemeIndex(prefix, pointerX - line.x);  <span class="cm">// pixel -&gt; grapheme</span>
+const caretX = line.x + graphemeIndexToX(prefix, i);    <span class="cm">// grapheme -&gt; pixel</span></pre>
+      </div>
+      <div class="code">
+        <div class="cap">raw Pretext, by hand</div>
+        <pre><span class="cm">// no shapes here — a different axis. By hand you would:</span>
+<span class="cm">//  1. split line.text into graphemes (Intl.Segmenter)</span>
+<span class="cm">//  2. measure cumulative widths with ctx.measureText</span>
+<span class="cm">//  3. binary-search the boundary nearest the pointer</span>
+<span class="cm">//  4. treat emoji / ZWJ clusters as ONE unit (easy to botch)</span>
+<span class="cm">// ~30 lines per app, subtly wrong on graphemes if rushed.</span></pre>
+      </div>
+    </div>
+    <p class="verdict">A different axis — pixel &harr; grapheme, not shape. ~30 lines you'd otherwise rewrite (and mishandle emoji). textpour: <b>buildPrefixWidths</b> + <b>xToGraphemeIndex</b>.</p>
+  </section>
+</main>
+
+<footer class="colophon">
+  <span>textpour · text-geometry on @chenglou/pretext</span>
+  <a href="https://github.com/beansint/textpour">github.com/beansint/textpour</a>
+</footer>
+
+<script type="module">
+import {
+  shapeFlow,
+  rect, circle, ellipse, polygon, subtract,
+  PretextLineSource,
+  Canvas2DRenderer,
+  canvasMeasurer,
+  buildPrefixWidths,
+  xToGraphemeIndex,
+  graphemeIndexToX,
+} from '../dist/src/index.js';
+
+// ---------------------------------------------------------------------------
+// Canvas setup (HiDPI, cap 2)
+// ---------------------------------------------------------------------------
+
+const CANVAS_CSS_W = 720;
+const CANVAS_CSS_H = 540;
+
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const dpr    = Math.min(window.devicePixelRatio || 1, 2);
+
+canvas.width        = CANVAS_CSS_W * dpr;
+canvas.height       = CANVAS_CSS_H * dpr;
+canvas.style.width  = CANVAS_CSS_W + 'px';
+canvas.style.height = CANVAS_CSS_H + 'px';
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+let flowResult   = null;   // latest shapeFlow output
+let hoverState   = null;   // { line, graphemeIdx, caretX, prefixWidths }
+let lockedState  = null;   // same, but from pointerdown (stays until next click)
+let blinkOn      = true;
+let blinkFrame   = null;
+let blinkTick    = 0;
+
+// ---------------------------------------------------------------------------
+// Shape builders
+// ---------------------------------------------------------------------------
+
+const CX = CANVAS_CSS_W / 2;
+const CY = CANVAS_CSS_H / 2;
+
+function buildRegion(shapeId) {
+  switch (shapeId) {
+    case 'ellipse':
+      return ellipse(CX, CY, 300, 210);
+    case 'rect':
+      return rect(60, 60, CANVAS_CSS_W - 120, CANVAS_CSS_H - 120);
+    case 'polygon': {
+      // Concave arrow / chevron shape pointing right, to stress multi-span hit testing
+      const pts = [
+        [80,  80],
+        [480, 80],
+        [640, CY],
+        [480, CANVAS_CSS_H - 80],
+        [80,  CANVAS_CSS_H - 80],
+        [200, CY],
+      ];
+      return polygon(pts);
+    }
+    default: // circle
+      return circle(CX, CY, 230);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rebuild + flow
+// ---------------------------------------------------------------------------
+
+function getFontStr() {
+  const sz = +document.getElementById('font-size').value;
+  return `${sz}px Georgia`;
+}
+
+function getLineHeight(fontSize) {
+  return Math.round(fontSize * 1.45);
+}
+
+let currentSource = null;
+let currentFontStr = '';
+let currentText = '';
+
+function rebuildSource() {
+  const fontStr = getFontStr();
+  const text    = document.getElementById('text-input').value || 'Hello world 👍';
+  if (fontStr === currentFontStr && text === currentText && currentSource) return;
+  currentFontStr = fontStr;
+  currentText    = text;
+  ctx.font = fontStr;
+  currentSource = new PretextLineSource(text, fontStr, canvasMeasurer(ctx, fontStr));
+}
+
+function reflow() {
+  rebuildSource();
+  const fontStr    = currentFontStr;
+  const fontSize   = +document.getElementById('font-size').value;
+  const lineHeight = getLineHeight(fontSize);
+  const shapeId    = document.getElementById('shape-sel').value;
+
+  ctx.font = fontStr;
+  const m      = ctx.measureText('Mg');
+  const ascent = m.actualBoundingBoxAscent || lineHeight * 0.78;
+
+  const region = buildRegion(shapeId);
+
+  flowResult = shapeFlow(currentSource, region, {
+    lineHeight,
+    ascent,
+    align:     'left',
+    multiSpan: 'fill',
+  });
+
+  // Reset hover/lock when content changes
+  hoverState  = null;
+  lockedState = null;
+  clearReadout();
+  draw();
+}
+
+// ---------------------------------------------------------------------------
+// Hit test: map (px, py) in CSS-px canvas coords to a caret position
+// ---------------------------------------------------------------------------
+
+function hitTest(px, py) {
+  if (!flowResult || flowResult.lines.length === 0) return null;
+
+  const fontStr    = currentFontStr;
+  const fontSize   = +document.getElementById('font-size').value;
+  const lineHeight = getLineHeight(fontSize);
+  const lines      = flowResult.lines;
+
+  // 1. Find the best line: prioritise row-band + horizontal containment,
+  //    then nearest by vertical distance.
+  let best      = null;
+  let bestDist  = Infinity;
+
+  for (const line of lines) {
+    const rowTop = line.y;
+    const rowBot = line.y + lineHeight;
+    const inY    = py >= rowTop && py < rowBot;
+    const inX    = px >= line.x && px <= line.x + line.width;
+
+    let dist;
+    if (inY && inX) {
+      dist = 0; // perfect hit
+    } else if (inY) {
+      // On the right row, but outside horizontal span — still prefer this row
+      dist = Math.min(Math.abs(px - line.x), Math.abs(px - (line.x + line.width)));
+    } else {
+      const dy = py < rowTop ? rowTop - py : py - rowBot;
+      const dx = inX ? 0 : Math.min(Math.abs(px - line.x), Math.abs(px - (line.x + line.width)));
+      dist = Math.hypot(dx, dy) + 1000; // large penalty for wrong row
+    }
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      best     = line;
+    }
+  }
+
+  if (!best) return null;
+
+  // 2. Compute caret position within the best line
+  ctx.font = fontStr;
+  const measurer = canvasMeasurer(ctx, fontStr);
+  const prefix   = buildPrefixWidths(best.text, measurer);
+  const relX     = px - best.x;
+  const idx      = xToGraphemeIndex(prefix, relX);
+  const caretX   = best.x + graphemeIndexToX(prefix, idx);
+
+  return { line: best, graphemeIdx: idx, caretX, prefixWidths: prefix, lineHeight };
+}
+
+// ---------------------------------------------------------------------------
+// Draw
+// ---------------------------------------------------------------------------
+
+const ACCENT      = '#c5431d';
+const ACCENT_A20  = 'rgba(197,67,29,0.12)';
+const ACCENT_A35  = 'rgba(197,67,29,0.22)';
+const INK         = '#17130d';
+
+function drawShape(shapeId) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(23,19,13,0.13)';
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([4, 5]);
+  ctx.beginPath();
+  switch (shapeId) {
+    case 'ellipse':
+      ctx.ellipse(CX, CY, 300, 210, 0, 0, Math.PI * 2);
+      break;
+    case 'rect':
+      ctx.rect(60, 60, CANVAS_CSS_W - 120, CANVAS_CSS_H - 120);
+      break;
+    case 'polygon': {
+      const pts = [
+        [80,  80], [480, 80], [640, CY], [480, CANVAS_CSS_H - 80],
+        [80,  CANVAS_CSS_H - 80], [200, CY],
+      ];
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.closePath();
+      break;
+    }
+    default:
+      ctx.arc(CX, CY, 230, 0, Math.PI * 2);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function draw() {
+  if (!flowResult) return;
+
+  const fontStr    = currentFontStr;
+  const fontSize   = +document.getElementById('font-size').value;
+  const lineHeight = getLineHeight(fontSize);
+  const shapeId    = document.getElementById('shape-sel').value;
+
+  ctx.clearRect(0, 0, CANVAS_CSS_W, CANVAS_CSS_H);
+
+  // Warm paper tint
+  ctx.fillStyle = 'rgba(241,236,224,0.5)';
+  ctx.fillRect(0, 0, CANVAS_CSS_W, CANVAS_CSS_H);
+
+  // Shape outline (dashed guide)
+  drawShape(shapeId);
+
+  // Determine active state (locked takes priority over hover)
+  const active = lockedState || hoverState;
+
+  // Highlight active line UNDER text (thin underline approach: draw faint bg rect)
+  if (active) {
+    const ln = active.line;
+    // Faint highlight behind the active line
+    ctx.fillStyle = lockedState ? ACCENT_A35 : ACCENT_A20;
+    ctx.fillRect(ln.x - 2, ln.y + 1, ln.width + 4, lineHeight - 2);
+  }
+
+  // Render text
+  const renderer = new Canvas2DRenderer(fontStr, { color: INK });
+  renderer.render(flowResult, ctx);
+
+  // Draw caret on top
+  if (active) {
+    const ln     = active.line;
+    const caretX = active.caretX;
+    const top    = ln.y + 3;
+    const bot    = ln.y + lineHeight - 3;
+
+    if (lockedState) {
+      // Locked: solid blinking caret
+      if (blinkOn) {
+        ctx.save();
+        ctx.strokeStyle = ACCENT;
+        ctx.lineWidth   = 2;
+        ctx.lineCap     = 'round';
+        ctx.beginPath();
+        ctx.moveTo(caretX, top);
+        ctx.lineTo(caretX, bot);
+        ctx.stroke();
+        // Tiny serif serifs at top/bottom
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(caretX - 3, top);
+        ctx.lineTo(caretX + 3, top);
+        ctx.moveTo(caretX - 3, bot);
+        ctx.lineTo(caretX + 3, bot);
+        ctx.stroke();
+        ctx.restore();
+      }
+    } else {
+      // Hover: softer, always visible
+      ctx.save();
+      ctx.globalAlpha = 0.65;
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth   = 1.5;
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.moveTo(caretX, top);
+      ctx.lineTo(caretX, bot);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Blink loop (only runs when caret is locked)
+// ---------------------------------------------------------------------------
+
+function startBlink() {
+  stopBlink();
+  blinkOn = true;
+  blinkTick = 0;
+  function tick() {
+    blinkTick++;
+    // ~530ms on, ~530ms off at 60fps
+    if (blinkTick % 32 === 0) {
+      blinkOn = !blinkOn;
+      draw();
+    }
+    blinkFrame = requestAnimationFrame(tick);
+  }
+  blinkFrame = requestAnimationFrame(tick);
+}
+
+function stopBlink() {
+  if (blinkFrame !== null) {
+    cancelAnimationFrame(blinkFrame);
+    blinkFrame = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Readout update
+// ---------------------------------------------------------------------------
+
+function updateReadout(state) {
+  if (!state) { clearReadout(); return; }
+
+  const { line, graphemeIdx, caretX, prefixWidths } = state;
+  const totalGraphemes = prefixWidths.length - 1;
+
+  // Characters left/right of caret
+  // We need to iterate graphemes of line.text to find them
+  const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+  const graphemes = [...segmenter.segment(line.text)].map(s => s.segment);
+
+  const leftChar  = graphemeIdx > 0             ? graphemes[graphemeIdx - 1] : null;
+  const rightChar = graphemeIdx < graphemes.length ? graphemes[graphemeIdx]   : null;
+
+  document.getElementById('r-row').textContent    = line.rowIndex;
+  document.getElementById('r-gidx').textContent   = graphemeIdx;
+  document.getElementById('r-gtotal').textContent = totalGraphemes;
+  document.getElementById('r-cx').textContent     = caretX.toFixed(1);
+
+  const lEl = document.getElementById('r-left');
+  const rEl = document.getElementById('r-right');
+
+  lEl.textContent = leftChar  ?? '·';
+  rEl.textContent = rightChar ?? '·';
+  lEl.className   = leftChar  ? 'ch' : 'ch muted';
+  rEl.className   = rightChar ? 'ch' : 'ch muted';
+}
+
+function clearReadout() {
+  document.getElementById('r-row').textContent    = '—';
+  document.getElementById('r-gidx').textContent   = '—';
+  document.getElementById('r-gtotal').textContent = '—';
+  document.getElementById('r-cx').textContent     = '—';
+  document.getElementById('r-left').textContent   = '·';
+  document.getElementById('r-right').textContent  = '·';
+  document.getElementById('r-left').className     = 'ch muted';
+  document.getElementById('r-right').className    = 'ch muted';
+}
+
+// ---------------------------------------------------------------------------
+// Pointer events — convert client rect → CSS-px canvas coords
+// ---------------------------------------------------------------------------
+
+function canvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    px: e.clientX - rect.left,
+    py: e.clientY - rect.top,
+  };
+}
+
+canvas.addEventListener('pointermove', (e) => {
+  const { px, py } = canvasCoords(e);
+  hoverState = hitTest(px, py);
+  updateReadout(hoverState);
+  if (!lockedState) draw();
+  else {
+    // Still update readout to hover, but don't redraw (locked caret stays)
+    // Actually redraw so hover highlight is visible alongside locked caret
+    draw();
+  }
+});
+
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  const { px, py } = canvasCoords(e);
+  const hit = hitTest(px, py);
+  if (hit) {
+    lockedState = hit;
+    blinkOn     = true;
+    blinkTick   = 0;
+    startBlink();
+    updateReadout(lockedState);
+    draw();
+  }
+});
+
+canvas.addEventListener('pointerleave', () => {
+  hoverState = null;
+  if (!lockedState) {
+    clearReadout();
+    draw();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Controls
+// ---------------------------------------------------------------------------
+
+document.getElementById('font-size').addEventListener('input', () => {
+  const v = document.getElementById('font-size').value;
+  document.getElementById('font-size-val').innerHTML = `<b>${v}px</b>`;
+  lockedState = null;
+  stopBlink();
+  reflow();
+});
+
+document.getElementById('shape-sel').addEventListener('change', () => {
+  lockedState = null;
+  stopBlink();
+  reflow();
+});
+
+document.getElementById('text-input').addEventListener('input', () => {
+  currentSource = null; // force rebuild
+  lockedState   = null;
+  stopBlink();
+  reflow();
+});
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+
+await document.fonts.ready;
+document.getElementById('font-size-val').innerHTML = '<b>22px</b>';
+reflow();
+</script>
+
+</body>
+</html>

@@ -3,16 +3,18 @@
 A render-agnostic **text-geometry kernel** on top of
 [`@chenglou/pretext`](https://github.com/chenglou/pretext).
 
-- **Shape-flow**: pour text into arbitrary 2D regions — circles, polygons, holes, boolean
-  combinations, SVG paths, glyph outlines, and raster alpha masks — by routing Pretext's
-  line-breaking through per-row spans. (CSS `shape-inside` never shipped; this does it.)
-- **Typographic quality** (the moat): justification (`align: 'justify'`), soft-hyphenation,
-  balanced lines, auto-fit (binary-search font size), and conservative band sampling so glyphs
-  never poke outside tight curves.
+- **Shape-flow — the reusable core.** Turn any 2D region — circles, ellipses, polygons, boolean
+  unions/intersections/**holes**, SVG paths, glyph outlines, raster alpha masks — into the per-row
+  spans Pretext fills, threading one cursor across the *several disjoint spans* a single row can have
+  (around a hole, through a glyph's counters). This shape→spans geometry is the part worth a library.
+  (CSS `shape-inside` never shipped; this does it.)
 - **Cursor ↔ point mapping**: map pixel positions to exact grapheme positions and back, for
   caret/hit-testing in custom-rendered text.
-- **Pluggable paint**: the kernel computes geometry; `Renderer`s paint it. Canvas2D works today;
-  an HTML-in-Canvas adapter (for high-fidelity, accessible, 3D-surface paint) is stubbed for later.
+- **Conveniences over the line breaker** (nice-to-haves, *not* the moat): justification, soft-
+  hyphenation, balanced lines, auto-fit, conservative band sampling — pragmatic implementations over
+  the *published* `@chenglou/pretext@0.0.1`; Pretext's fuller API does several of these natively.
+- **Pluggable paint**: the kernel computes geometry; `Renderer`s paint it. Canvas2D today; an
+  HTML-in-Canvas adapter (high-fidelity, accessible, 3D-surface paint) is stubbed for later.
 
 The design bet is the **plan/paint split**: Pretext plans cheaply every frame (no DOM reflow); an
 expensive high-fidelity backend paints only when the plan changes.
@@ -23,6 +25,12 @@ Text poured into a circle and a donut (multi-span), reflowing live as the region
 prepared pass reused on every frame:
 
 ![textpour demo: text flowing into a circle and a donut, reflowing live](assets/textpour-demo.gif)
+
+A gallery of practical demos lives in `demo/` — serve over http (`npm run build` first) and open
+**`demo/gallery.html`**. Start with **Anatomy**, which runs raw Pretext and textpour *side by side*:
+identical pixels for a circle (just inline the loop), and the spans function ballooning into a
+rasterizer for a glyph (reuse the library). The rest — Islands, Letterform, Ghostwriter, Reflow,
+Touchpoint — isolate one capability each, with a "textpour vs raw Pretext" code panel on every page.
 
 ## Why not just Pretext?
 
@@ -53,7 +61,10 @@ balanced-lines are pragmatic implementations over that minimal surface — when 
 richer API (Knuth–Plass justify, real hyphenation, `walkLineRanges`), textpour will defer to those
 and keep only the geometry it uniquely contributes.
 
-In one line: **Pretext breaks the lines; textpour decides the shape those lines fill.**
+In one line: **Pretext breaks the lines; textpour decides the shape those lines fill.** The flow loop
+on top is ~12 lines you could inline — what textpour actually packages is `region.spansAt(y)` for
+shapes Pretext has no concept of. A convenience kernel, not a new capability. (See the **Anatomy**
+demo for the side-by-side proof.)
 
 ## Quickstart
 
@@ -63,7 +74,7 @@ npm test          # builds, runs the pure-logic test suite (56 specs)
 npm run build     # emits dist/
 # demo (needs a browser + http):
 npx http-server . # or any static server
-# open /demo/index.html
+# open /demo/gallery.html
 ```
 
 ## Status

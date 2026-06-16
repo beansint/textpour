@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anatomy — textpour</title>
+  <link rel="stylesheet" href="./demos.css" />
+  <script type="importmap">
+    { "imports": { "@chenglou/pretext": "https://esm.sh/@chenglou/pretext" } }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./gallery.html">text<b>pour</b></a>
+    <nav>
+      <a href="./gallery.html">Gallery</a>
+      <a aria-current="page" href="./anatomy.html">Anatomy</a>
+      <a href="./islands.html">Islands</a>
+      <a href="./letterform.html">Letterform</a>
+      <a href="./silhouette.html">Silhouette</a>
+      <a href="./orbit.html">Reflow</a>
+      <a href="./caret.html">Caret</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="eyebrow">An honest teardown</p>
+    <h1 class="display">What is textpour, <em>really?</em></h1>
+    <p class="lede">
+      textpour adds nothing Pretext can't be driven to do — it is built on Pretext's per-line
+      layoutNextLine. The line-flow loop is about twelve trivial lines you could inline. The only
+      reusable part is turning a 2-D shape into correct per-row spans. Proof below.
+    </p>
+
+    <!-- ===== SECTION A ===== -->
+    <section class="teardown">
+      <h2>A circle: <em>do it yourself.</em></h2>
+      <p class="sub">Same text, same circle, same font — rendered two ways. The pixels match.</p>
+
+      <div class="twoup">
+        <div>
+          <p class="panel-h">Raw Pretext · zero textpour</p>
+          <div class="stage"><canvas id="rawC"></canvas></div>
+        </div>
+        <div>
+          <p class="panel-h"><b>textpour</b></p>
+          <div class="stage"><canvas id="tpC"></canvas></div>
+        </div>
+      </div>
+
+      <div class="compare" style="margin-top:22px">
+        <div class="code">
+          <div class="cap">raw pretext</div>
+          <pre><span class="cm">// import { prepareWithSegments, layoutNextLine }</span>
+<span class="cm">// from '@chenglou/pretext';</span>
+
+const prepared = prepareWithSegments(TEXT, FONT);
+let cur = { segmentIndex: 0, graphemeIndex: 0 };
+
+ctx.font = FONT;
+ctx.textBaseline = 'alphabetic';
+ctx.fillStyle = '#17130d';
+
+<span class="hl">for (let y = CY - R; y + LH &lt;= CY + R; y += LH) {</span>
+<span class="hl">  const yc = y + LH / 2, dy = yc - CY;</span>
+<span class="hl">  if (Math.abs(dy) &gt; R) continue;</span>
+<span class="hl">  const half = Math.sqrt(R * R - dy * dy); // &lt;-- you own this</span>
+<span class="hl">  const x0 = CX - half, x1 = CX + half;</span>
+<span class="hl">  const line = layoutNextLine(prepared, cur, x1 - x0);</span>
+<span class="hl">  if (!line) break;</span>
+<span class="hl">  ctx.fillText(line.text, x0, y + ASC);</span>
+<span class="hl">  cur = line.end;</span>
+<span class="hl">}</span></pre>
+        </div>
+        <div class="code">
+          <div class="cap accent">textpour</div>
+          <pre><span class="cm">// import { PretextLineSource, circle,</span>
+<span class="cm">//   shapeFlow, Canvas2DRenderer }</span>
+<span class="cm">// from '../dist/src/index.js';</span>
+
+const src = new PretextLineSource(TEXT, FONT);
+
+const res = shapeFlow(
+  src,
+  <span class="hl">circle(CX, CY, R),</span>  <span class="cm">// &lt;-- that sqrt, done</span>
+  { lineHeight: LH, ascent: ASC },
+);
+
+new Canvas2DRenderer(FONT, { color: '#17130d' })
+  .render(res, ctx);</pre>
+        </div>
+      </div>
+
+      <p class="verdict">
+        Identical pixels. textpour saved about five lines and a square root.
+        For one simple shape, <b>inline the loop and skip the library.</b>
+      </p>
+    </section>
+
+    <!-- ===== SECTION B ===== -->
+    <section class="teardown">
+      <h2>A glyph: <em>the library earns it.</em></h2>
+      <p class="sub">Swap the circle for a letter. The loop does not change. The spans function does.</p>
+
+      <div class="stage"><canvas id="glyphC"></canvas></div>
+
+      <div class="compare" style="margin-top:22px">
+        <div class="code">
+          <div class="cap">raw pretext — the loop is unchanged</div>
+          <pre><span class="cm">// The 12-line loop is IDENTICAL. Only spansAt changed.</span>
+<span class="cm">// You now maintain a rasterizer, a run-length scanner,</span>
+<span class="cm">// and a font-size binary search yourself.</span>
+
+<span class="cm">// 1. Rasterize the glyph to an offscreen canvas:</span>
+const mask = document.createElement('canvas');
+mask.width = W; mask.height = H;
+const mctx = mask.getContext('2d', { willReadFrequently: true });
+let lo = 10, hi = 900;
+for (let i = 0; i &lt; 22 &amp;&amp; hi - lo &gt; 0.5; i++) {
+  const s = (lo + hi) / 2;
+  mctx.font = `900 ${s}px Fraunces`;
+  const m = mctx.measureText('&amp;');
+  (m.width &lt;= W - 80 &amp;&amp; (m.actualBoundingBoxAscent
+    + m.actualBoundingBoxDescent) &lt;= H - 72) ? lo = s : hi = s;
+}
+mctx.font = `900 ${lo}px Fraunces`;
+mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
+mctx.fillText('&amp;', W / 2, H / 2);
+
+<span class="cm">// 2. Read alpha into a flat array:</span>
+const img = mctx.getImageData(0, 0, W, H).data;
+const alpha = new Uint8ClampedArray(W * H);
+for (let p = 0; p &lt; W * H; p++)
+  alpha[p] = img[p * 4 + 3] &gt;= 128 ? 255 : 0;
+
+<span class="cm">// 3. Per-row run-length scan to find ink spans:</span>
+function spansAt(y) {
+  const row = Math.floor(y);
+  if (row &lt; 0 || row &gt;= H) return [];
+  const spans = [];
+  let inside = false, start = 0;
+  for (let x = 0; x &lt; W; x++) {
+    const ink = alpha[row * W + x] &gt; 0;
+    if (!inside &amp;&amp; ink) { inside = true; start = x; }
+    else if (inside &amp;&amp; !ink) { spans.push([start, x]); inside = false; }
+  }
+  if (inside) spans.push([start, W]);
+  return spans;
+}
+
+<span class="cm">// 4. Binary-search font size so words pack the shape:</span>
+<span class="cm">// ... another ~20 lines to auto-fit body font size ...</span>
+
+<span class="cm">// 5. Then the same 12-line loop, calling spansAt(y)</span>
+<span class="cm">// for each row and threading cursor across all spans.</span>
+<span class="cm">// You also re-derived justification slack distribution.</span></pre>
+        </div>
+        <div class="code">
+          <div class="cap accent">textpour</div>
+          <pre><span class="cm">// import { PretextLineSource, maskRegion,</span>
+<span class="cm">//   autoFit, Canvas2DRenderer }</span>
+<span class="cm">// from '../dist/src/index.js';</span>
+
+<span class="cm">// rasterize the glyph (you still do this part):</span>
+rasterizeGlyph('&amp;', '900 ${S}px Fraunces', mctx, W, H);
+const img = mctx.getImageData(0, 0, W, H).data;
+const alpha = new Uint8ClampedArray(W * H);
+for (let p = 0; p &lt; W * H; p++)
+  alpha[p] = img[p * 4 + 3];
+
+<span class="hl">const region = maskRegion(W, H, alpha, 128);</span>
+
+<span class="hl">const fit = autoFit(</span>
+<span class="hl">  (px) =&gt; new PretextLineSource(BODY, `${px}px Georgia`),</span>
+<span class="hl">  region,</span>
+<span class="hl">  { lineHeightRatio: 1.16, ascentRatio: 0.92,</span>
+<span class="hl">    minSizePx: 7, maxSizePx: 20, tolerance: 0.5 },</span>
+<span class="hl">);</span>
+
+<span class="hl">new Canvas2DRenderer(`${fit.sizePx}px Georgia`,</span>
+<span class="hl">  { color: '#17130d' }).render(fit.result, ctx);</span></pre>
+        </div>
+      </div>
+
+      <p class="verdict">
+        The loop never changed. <b>spansAt</b> exploded into a rasterizer, and you re-derived
+        auto-fit too. That pile — for circles, donuts, concave polygons, SVG paths, glyphs, masks,
+        and boolean combinations — <b>is all textpour actually is.</b>
+      </p>
+    </section>
+
+    <!-- ===== BOTTOM LINE ===== -->
+    <p class="note" style="margin-top: 40px; line-height: 1.7;">
+      textpour &asymp; <code class="k">Region.spansAt(y)</code> for arbitrary shapes + a twelve-line
+      loop you could inline. One simple shape: inline it. Many or hard shapes &mdash; three-plus spans
+      per row, glyphs, photo masks, booleans, justification slack across spans, emoji-correct carets
+      &mdash; reuse it. It is a convenience kernel, not a new capability.
+      That is the honest pitch.
+    </p>
+  </main>
+
+  <footer class="colophon">
+    <span>textpour · text-geometry on @chenglou/pretext</span>
+    <a href="https://github.com/beansint/textpour">github.com/beansint/textpour</a>
+  </footer>
+
+  <script type="module">
+    import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext';
+    import {
+      PretextLineSource, circle, shapeFlow, Canvas2DRenderer,
+      maskRegion, autoFit,
+    } from '../dist/src/index.js';
+
+    // ── shared params ──────────────────────────────────────────────────────────
+    const TEXT =
+      'Typography is the craft of endowing human language with a durable visual form. ' +
+      'Each word here is placed by a line breaker, not a human hand. The shape controls ' +
+      'the width on every row; the breaker fills the given width. Two concerns, two lines of code, ' +
+      'zero shared state. That is the whole architecture: geometry decides spans, Pretext fills them.';
+
+    const FONT = '18px Georgia';
+    const CX = 190, CY = 175, R = 160;
+    const LH = 26, ASC = 20;
+    const CSS_W = 380, CSS_H = 350;
+
+    const BODY =
+      'Typography is the craft of endowing human language with a durable visual form. The shape of a ' +
+      'letter is a vessel; here the vessel is filled with the very thing it represents. Each line of ' +
+      'text is broken to the width available at its height, and where the glyph splits into separate ' +
+      'chambers a single line simply continues across the gap, as if the counter were never there. ' +
+      'This is the whole trick: geometry decides the spans, the line breaker fills them, and the two ' +
+      'never need to know about each other. Words become matter; matter takes the shape of a word. ';
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    function setupCanvas(id, w, h) {
+      const c = document.getElementById(id);
+      c.width = w * dpr; c.height = h * dpr;
+      c.style.width = w + 'px'; c.style.height = h + 'px';
+      const ctx = c.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return ctx;
+    }
+
+    await document.fonts.ready;
+
+    // ── Section A: raw Pretext ─────────────────────────────────────────────────
+    (function drawRaw() {
+      const ctx = setupCanvas('rawC', CSS_W, CSS_H);
+      const prepared = prepareWithSegments(TEXT, FONT);
+      let cur = { segmentIndex: 0, graphemeIndex: 0 };
+
+      ctx.font = FONT;
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#17130d';
+
+      for (let y = CY - R; y + LH <= CY + R; y += LH) {
+        const yc = y + LH / 2, dy = yc - CY;
+        if (Math.abs(dy) > R) continue;
+        const half = Math.sqrt(R * R - dy * dy);
+        const x0 = CX - half, x1 = CX + half;
+        const line = layoutNextLine(prepared, cur, x1 - x0);
+        if (!line) break;
+        ctx.fillText(line.text, x0, y + ASC);
+        cur = line.end;
+      }
+
+      // faint circle outline
+      ctx.beginPath();
+      ctx.arc(CX, CY, R, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(23,19,13,0.10)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    })();
+
+    // ── Section A: textpour ────────────────────────────────────────────────────
+    (function drawTp() {
+      const ctx = setupCanvas('tpC', CSS_W, CSS_H);
+      const src = new PretextLineSource(TEXT, FONT);
+      const res = shapeFlow(src, circle(CX, CY, R), { lineHeight: LH, ascent: ASC });
+      new Canvas2DRenderer(FONT, { color: '#17130d' }).render(res, ctx);
+
+      // faint circle outline
+      ctx.beginPath();
+      ctx.arc(CX, CY, R, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(23,19,13,0.10)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    })();
+
+    // ── Section B: glyph fill ──────────────────────────────────────────────────
+    (function drawGlyph() {
+      const GLYPH_W = 380, GLYPH_H = 340;
+      const ctx = setupCanvas('glyphC', GLYPH_W, GLYPH_H);
+
+      // offscreen mask at logical resolution
+      const mask = document.createElement('canvas');
+      mask.width = GLYPH_W; mask.height = GLYPH_H;
+      const mctx = mask.getContext('2d', { willReadFrequently: true });
+
+      // fit the glyph to the canvas
+      const LETTER = '&';
+      const STYLE_TPL = '900 $Spx Fraunces';
+      mctx.fillStyle = '#000';
+      mctx.textAlign = 'center';
+      mctx.textBaseline = 'middle';
+      const marginX = 40, marginY = 36;
+      const maxW = GLYPH_W - marginX * 2, maxH = GLYPH_H - marginY * 2;
+      let lo = 10, hi = 900;
+      for (let i = 0; i < 22 && hi - lo > 0.5; i++) {
+        const s = (lo + hi) / 2;
+        mctx.font = STYLE_TPL.replace('$S', s.toFixed(2));
+        const m = mctx.measureText(LETTER);
+        const asc = m.actualBoundingBoxAscent ?? s * 0.7;
+        const desc = m.actualBoundingBoxDescent ?? s * 0.2;
+        if (m.width <= maxW && asc + desc <= maxH) lo = s; else hi = s;
+      }
+      mctx.font = STYLE_TPL.replace('$S', lo.toFixed(2));
+      mctx.fillText(LETTER, GLYPH_W / 2, GLYPH_H / 2);
+
+      // read alpha
+      const img = mctx.getImageData(0, 0, GLYPH_W, GLYPH_H).data;
+      const alpha = new Uint8ClampedArray(GLYPH_W * GLYPH_H);
+      for (let p = 0; p < GLYPH_W * GLYPH_H; p++) alpha[p] = img[p * 4 + 3];
+
+      const region = maskRegion(GLYPH_W, GLYPH_H, alpha, 128, 0, 0);
+
+      // ghost of the glyph
+      ctx.save();
+      ctx.globalAlpha = 0.055;
+      ctx.drawImage(mask, 0, 0, GLYPH_W, GLYPH_H);
+      ctx.restore();
+
+      const fit = autoFit(
+        (px) => new PretextLineSource(BODY, `${px}px Georgia`),
+        region,
+        { lineHeightRatio: 1.16, ascentRatio: 0.92, minSizePx: 7, maxSizePx: 20, tolerance: 0.5 },
+      );
+
+      new Canvas2DRenderer(`${fit.sizePx}px Georgia`, { color: '#17130d' }).render(fit.result, ctx);
+    })();
+  </script>
+</body>
+</html>

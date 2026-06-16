@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Islands — textpour</title>
+  <link rel="stylesheet" href="./demos.css" />
+  <script type="importmap">
+    { "imports": { "@chenglou/pretext": "https://esm.sh/@chenglou/pretext" } }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./gallery.html">text<b>pour</b></a>
+    <nav>
+      <a href="./gallery.html">Gallery</a>
+      <a href="./anatomy.html">Anatomy</a>
+      <a aria-current="page" href="./islands.html">Islands</a>
+      <a href="./letterform.html">Letterform</a>
+      <a href="./silhouette.html">Silhouette</a>
+      <a href="./orbit.html">Reflow</a>
+      <a href="./caret.html">Caret</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="eyebrow">The finding · the cursor trick</p>
+    <h1 class="display">One line, <em>many</em> gaps.</h1>
+    <p class="lede">
+      A line breaker like Pretext fills one line at one width. Drop an obstacle into the middle of a
+      column and that model breaks — the line is now two pieces with a hole between them. textpour
+      threads a single reading cursor through every span on the row, so a line flows around islands on
+      both sides at once. Drag the stones.
+    </p>
+
+    <div class="controls">
+      <span class="ctl"><label for="n">Islands</label>
+        <input id="n" type="range" min="1" max="4" value="2" /><span class="ctl-label" id="nv">2</span></span>
+      <span class="ctl"><label for="r">Size</label>
+        <input id="r" type="range" min="34" max="92" value="62" /><span class="ctl-label" id="rv">62</span></span>
+      <span class="ctl toggle"><input id="just" type="checkbox" checked /><label for="just">Justify</label></span>
+      <span class="ctl toggle"><input id="show" type="checkbox" checked /><label for="show">Show spans</label></span>
+    </div>
+
+    <div class="stage">
+      <canvas id="c"></canvas>
+    </div>
+
+    <div class="readout">
+      <span class="chip">lines <b id="r-lines">—</b></span>
+      <span class="chip"><span class="accent">multi-span rows</span> <b id="r-multi">—</b></span>
+      <span class="chip">max spans on a row <b id="r-max">—</b></span>
+      <span class="chip">overflow <b id="r-over">—</b></span>
+    </div>
+
+    <p class="note">
+      The region is <code class="k">subtract(rect, …circles)</code>; the islands are real holes, so each
+      scanline returns several disjoint spans. With <code class="k">multiSpan:'fill'</code> one
+      <code class="k">cursor</code> is carried across them. The <span class="accent">multi-span rows</span>
+      and <b>max spans on a row</b> are impossible in a one-width-per-line model.
+    </p>
+
+    <section class="wiring">
+      <div class="wiring-h">the wiring · textpour vs raw Pretext</div>
+      <div class="compare">
+        <div class="code">
+          <div class="cap accent">textpour</div>
+          <pre><span class="cm">// holes punched into the column, then pour:</span>
+const region = subtract(rect(x,y,w,h), ...circles);
+const res = shapeFlow(src, region,
+  { lineHeight, ascent, multiSpan: 'fill', align: 'justify' });
+renderer.render(res, ctx);</pre>
+        </div>
+        <div class="code">
+          <div class="cap">raw Pretext, by hand</div>
+          <pre><span class="cm">// the loop never changes. spansAt(y) is the work:</span>
+function spansAt(yc) {
+  let spans = [[x, x + w]];             <span class="cm">// the column at this row</span>
+  for (const c of circles) {            <span class="cm">// subtract each island</span>
+    const dy = yc - c.cy;
+    if (Math.abs(dy) &gt;= c.r) continue;
+    const h = Math.sqrt(c.r*c.r - dy*dy);
+    spans = subtractInterval(spans, c.cx - h, c.cx + h);
+  }
+  return spans;                         <span class="cm">// 1..N disjoint pieces</span>
+}</pre>
+        </div>
+      </div>
+      <p class="verdict">The loop never changes. <b>spansAt</b> is boolean interval subtraction of N circles from a rect — re-derivable, but this is the piece textpour hands you (<b>subtract()</b> / CompositeRegion).</p>
+    </section>
+  </main>
+
+  <footer class="colophon">
+    <span>textpour · text-geometry on @chenglou/pretext</span>
+    <a href="https://github.com/beansint/textpour">github.com/beansint/textpour</a>
+  </footer>
+
+  <script type="module">
+    import { PretextLineSource, rect, circle, subtract, shapeFlow, canvasMeasurer, Canvas2DRenderer } from '../dist/src/index.js';
+
+    const CSS_W = 760, CSS_H = 560;
+    const PAD = 34;
+    const FONT = '19px Georgia';
+    const LH = 28;
+    const INK = '#17130d';
+    const BODY =
+      'In the printing house the compositor once set every line by hand, sliding each sorted letter ' +
+      'into a stick, justifying the measure with thin slips of brass and copper until the words filled ' +
+      'the line exactly. Around an engraving or a woodcut the type had to be cut and fitted by eye, the ' +
+      'lines stepping in and out to clear the picture. Here the same dance happens by arithmetic: the ' +
+      'shape declares where the spans are, the line breaker pours words into them, and a single cursor ' +
+      'walks from one fragment to the next as though the page were never interrupted at all. Move a ' +
+      'stone and the river finds a new bed instantly, because nothing was ever laid out in the DOM. ';
+
+    const canvas = document.getElementById('c');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = CSS_W * dpr; canvas.height = CSS_H * dpr;
+    canvas.style.width = CSS_W + 'px'; canvas.style.height = CSS_H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const $ = (id) => document.getElementById(id);
+    const column = rect(PAD, PAD, CSS_W - PAD * 2, CSS_H - PAD * 2);
+
+    // Island positions (normalized within the column); built once, dragged by pointer.
+    const islands = [
+      { x: 0.34, y: 0.34 }, { x: 0.66, y: 0.62 }, { x: 0.5, y: 0.86 }, { x: 0.5, y: 0.16 },
+    ].map((p) => ({ x: PAD + p.x * (CSS_W - PAD * 2), y: PAD + p.y * (CSS_H - PAD * 2) }));
+
+    let source = null, measurer = null;
+    function buildSource() {
+      measurer = canvasMeasurer(ctx, FONT);
+      source = new PretextLineSource(BODY, FONT, measurer);
+    }
+
+    function activeIslands() { return islands.slice(0, +$('n').value); }
+    function radius() { return +$('r').value; }
+
+    function render() {
+      $('nv').textContent = $('n').value;
+      $('rv').textContent = $('r').value;
+      const r = radius();
+      const holes = activeIslands().map((p) => circle(p.x, p.y, r + 8));
+      const region = holes.length ? subtract(column, ...holes) : column;
+      const res = shapeFlow(source, region, {
+        lineHeight: LH, ascent: 21, multiSpan: 'fill',
+        align: $('just').checked ? 'justify' : 'left',
+      });
+
+      ctx.clearRect(0, 0, CSS_W, CSS_H);
+
+      // Optional: tint the spans of each row so the multi-span structure is visible.
+      if ($('show').checked) {
+        for (const l of res.lines) {
+          ctx.fillStyle = l.spanIndex > 0 ? 'rgba(197,67,29,0.10)' : 'rgba(23,19,13,0.035)';
+          ctx.fillRect(l.x - 2, l.y, l.width + 4, LH);
+        }
+      }
+
+      // Islands (faux engravings).
+      for (const p of activeIslands()) {
+        const g = ctx.createRadialGradient(p.x - r * 0.3, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
+        g.addColorStop(0, '#e9e2d1'); g.addColorStop(1, '#cdbf9f');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(23,19,13,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+      }
+
+      new Canvas2DRenderer(FONT, { color: INK }).render(res, ctx);
+
+      const byRow = new Map();
+      for (const l of res.lines) byRow.set(l.rowIndex, (byRow.get(l.rowIndex) || 0) + 1);
+      const maxSpans = Math.max(0, ...byRow.values());
+      const multiRows = [...byRow.values()].filter((v) => v > 1).length;
+      $('r-lines').textContent = res.lines.length;
+      $('r-multi').textContent = multiRows;
+      $('r-max').textContent = maxSpans;
+      $('r-over').textContent = res.overflow ? 'yes' : 'no';
+    }
+
+    // Dragging.
+    let drag = null;
+    function pos(e) {
+      const b = canvas.getBoundingClientRect();
+      return { x: (e.clientX - b.left) * (CSS_W / b.width), y: (e.clientY - b.top) * (CSS_H / b.height) };
+    }
+    canvas.style.cursor = 'grab';
+    canvas.addEventListener('pointerdown', (e) => {
+      const m = pos(e); const r = radius();
+      for (const p of activeIslands()) {
+        if (Math.hypot(p.x - m.x, p.y - m.y) <= r + 6) { drag = p; canvas.setPointerCapture(e.pointerId); canvas.style.cursor = 'grabbing'; break; }
+      }
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const m = pos(e);
+      drag.x = Math.max(PAD, Math.min(CSS_W - PAD, m.x));
+      drag.y = Math.max(PAD, Math.min(CSS_H - PAD, m.y));
+      render();
+    });
+    canvas.addEventListener('pointerup', (e) => { drag = null; canvas.style.cursor = 'grab'; });
+
+    for (const id of ['n', 'r', 'just', 'show']) $(id).addEventListener('input', render);
+
+    await document.fonts.ready;
+    buildSource();
+    render();
+  </script>
+</body>
+</html>
