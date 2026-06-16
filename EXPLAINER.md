@@ -9,6 +9,10 @@ logos, shapes with holes — instead of only rectangles. It's built on
 [Cheng Lou's Pretext](https://github.com/chenglou/pretext) and is render-agnostic: it works out the
 geometry, and separate adapters draw it (Canvas2D today, with hooks for fancier paint later).
 
+> **Honest scope:** this is a hobby + learning project — also an exercise in shipping an npm package
+> properly (semver, CI-on-tag). It stands *on top of* Pretext; it is not a replacement for it, nor
+> production infrastructure. Pretext does the hard part; this just decides the shape.
+
 ## ELI5
 
 Think of text like water. On the web, water only ever goes into a rectangular glass — every

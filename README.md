@@ -66,6 +66,14 @@ on top is ~12 lines you could inline — what textpour actually packages is `reg
 shapes Pretext has no concept of. A convenience kernel, not a new capability. (See the **Anatomy**
 demo for the side-by-side proof.)
 
+## What this is (and isn't)
+
+A **hobby + learning project** — as much an excuse to learn the npm release loop (publish, semver,
+CI-on-tag) as a library. It's a thin geometry layer **on top of** Pretext, **not** a replacement for
+or competitor to it: Pretext does the hard part (shaping, line-breaking, measurement); textpour just
+turns shapes into spans. Treat it as a niche convenience, not infrastructure — fun if you're pouring
+text into odd shapes, but don't build anything load-bearing on it.
+
 ## Quickstart
 
 ```bash

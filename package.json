@@ -1,7 +1,7 @@
 {
   "name": "textpour",
   "version": "0.1.1",
-  "description": "A geometry layer for @chenglou/pretext — turn any 2D shape (holes, concave polygons, glyphs, image masks) into the per-row spans it fills (multi-span shape-flow), plus cursor<->point mapping.",
+  "description": "Hobby/learning project: a small geometry layer on top of @chenglou/pretext — turn any 2D shape (holes, glyphs, image masks) into the per-row spans it fills, plus cursor<->point mapping. Not a Pretext replacement.",
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
