@@ -5,6 +5,12 @@ All notable changes to this project are documented here. Format follows
 (pre-1.0: minor = breaking is allowed, patch = fixes/additions).
 
 ## [Unreleased]
+
+## [0.1.2] - 2026-06-17
+- Honest scope: README "What this is (and isn't)" + EXPLAINER callout make clear this is a **hobby +
+  npm-release-learning project**, a thin layer **on top of** Pretext (not a replacement), and a niche
+  convenience rather than infrastructure. package.json + GitHub repo descriptions reworded to match,
+  so npm/GitHub visitors aren't misled.
 - Demo gallery (`demo/`): a type-specimen suite — `gallery.html` plus **Anatomy** (runs raw Pretext
   vs textpour side by side: identical pixels for a circle, the spans function exploding for a glyph),
   **Islands** (multi-span around obstacles), **Letterform** (glyph filled via `maskRegion`+`autoFit`),
@@ -15,6 +21,8 @@ All notable changes to this project are documented here. Format follows
   flow loop is trivial glue; corrected the earlier "typographic quality is the moat" claim
   (justification/hyphenation/balance are conveniences over published Pretext, not the moat). Updated
   package.json + GitHub repo descriptions to the geometry framing.
+- README example is now a lean **Pretext vs textpour** side-by-side (raw loop + hand-written
+  `spansAt` versus `subtract(rect, circle)` + `shapeFlow`), mirroring the demo panels.
 
 ## [0.1.1] - 2026-06-16
 ### Docs / infra
@@ -109,7 +117,8 @@ All notable changes to this project are documented here. Format follows
 - `Renderer` seam: working `Canvas2DRenderer`, stubbed `HtmlInCanvasRenderer`.
 - 19 passing tests; browser demo (circle + donut + reflow).
 
-[Unreleased]: https://github.com/beansint/textpour/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/beansint/textpour/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/beansint/textpour/releases/tag/v0.1.2
 [0.1.1]: https://github.com/beansint/textpour/releases/tag/v0.1.1
 [0.1.0]: https://github.com/beansint/textpour/releases/tag/v0.1.0
 [0.0.1]: https://github.com/beansint/textpour/releases/tag/v0.0.1
